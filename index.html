@@ -1,40 +1,84 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pembelian Produk</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'media',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        inter: ["Inter", "sans-serif"],
-                    },
-                    colors: {
-                        primary: "#6366F1",
-                        secondary: "#818CF8",
-                    }
-                }
-            }
-        };
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="refresh" content="4; url=https://buylink.id/RyakbarShop/?type=game" />
+  <title> Ryakbar Voucher</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --main-color: #00f2ff;
+      --bg-gradient: radial-gradient(circle at center, #0f0c29, #302b63, #24243e);
+    }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      height: 100vh;
+      background: var(--bg-gradient);
+      font-family: 'Poppins', sans-serif;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      animation: fadeIn 1s ease-out;
+    }
+    h1 {
+      font-size: 2.7rem;
+      margin-bottom: 10px;
+      text-shadow: 0 0 10px var(--main-color);
+    }
+    p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      margin-bottom: 30px;
+    }
+    .fire {
+      font-size: 3.5rem;
+      animation: pulse 1.2s infinite ease-in-out;
+      filter: drop-shadow(0 0 10px red);
+    }
+    .loader {
+      width: 60px;
+      height: 60px;
+      border: 6px solid rgba(255, 255, 255, 0.2);
+      border-top: 6px solid var(--main-color);
+      border-radius: 50%;
+      animation: spin 1.2s linear infinite;
+      box-shadow: 0 0 20px var(--main-color);
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.15); opacity: 0.75; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    footer {
+      position: absolute;
+      bottom: 20px;
+      font-size: 0.85rem;
+      opacity: 0.6;
+    }
+  </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-inter">
-
-<div class="min-h-screen flex items-center justify-center p-5">
-    <div class="max-w-md w-full bg-white dark:bg-gray-800 shadow-lg rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-        <div class="relative">
-            <img src="https://forestapi.web.id/home/images/project-wa-bot-topup.jpg" alt="Produk Contoh" class="w-full">
-            <div class="absolute top-2 right-2 bg-green-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                Best Seller
-            </div>
-        </div>
-        <div class="p-6">
+<body>
+  <div class="fire">🔥</div>
+  <h1>Mengalihkan ke Layanan TopUp</h1>
+  <p>Anda akan segera diarahkan ke <strong>Ryakbar Shop</strong>, layanan topup terpercaya!</p>
+  <div class="loader"></div>
+  <footer>© 2025 Ryakbar Voucher</footer>
+</body>
+</html>        <div class="p-6">
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Nama Produk</h2>
             <p class="text-gray-600 dark:text-gray-300 mt-2 text-sm">Deskripsi produk secara singkat.</p>
 
