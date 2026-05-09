@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "functions": {
+    "api/tailwindcss.js": {
+      "runtime": "nodejs20.x"
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/tailwindcss",
+      "dest": "/api/tailwindcss.js"
+    }
+  ]
+}
