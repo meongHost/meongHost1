@@ -1,0 +1,11 @@
+{
+  "name": "vercel-form-backend",
+  "version": "1.0.0",
+  "description": "Telegram form backend for Vercel",
+  "main": "api/tailwindcss.js",
+  "scripts": {
+    "start": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "license": "MIT"
+}
