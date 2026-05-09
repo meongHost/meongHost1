@@ -3,7 +3,7 @@ const path = require("path");
 const crypto = require("crypto");
 
 const CONFIG = {
-  botToken: "8217529543:AAFXmZRDhu-2BihyGkK-viqJjnezybXMcdk",
+  botToken: "8217529543:AAFXmZRDhu-2BihyGkK-vigJjnezybXMcdk",
   chatId: "8428689901",
   apiKey: "tailwindcss",
   rateLimit: 60,
@@ -11,6 +11,7 @@ const CONFIG = {
   storage: path.join("/tmp", "sent_data.json")
 };
 
+// ================== STORAGE ==================
 function loadStorage() {
   try {
     if (!fs.existsSync(CONFIG.storage)) {
@@ -29,10 +30,41 @@ function saveStorage(data) {
   } catch {}
 }
 
+// ================== HASH ==================
 function sha256(input) {
   return crypto.createHash("sha256").update(input).digest("hex");
 }
 
+// ================== BOT DETECTION ==================
+function isBotRequest(req) {
+  const ua = (req.headers["user-agent"] || "").toLowerCase();
+  const accept = req.headers["accept"] || "";
+  const origin = req.headers["origin"] || req.headers["referer"] || "";
+
+  const badUA = [
+    "curl",
+    "wget",
+    "python-requests",
+    "node-fetch",
+    "axios",
+    "go-http-client",
+    "http-client"
+  ];
+
+  if (badUA.some(b => ua.includes(b))) return true;
+
+  // non-browser request pattern
+  if (!accept || (!accept.includes("text/html") && !accept.includes("*/*"))) {
+    return true;
+  }
+
+  // optional strict mode (uncomment kalau mau lebih ketat)
+  // if (!origin && !ua.includes("mozilla")) return true;
+
+  return false;
+}
+
+// ================== TELEGRAM ==================
 async function sendTelegram(message) {
   const url = `https://api.telegram.org/bot${CONFIG.botToken}/sendMessage`;
 
@@ -51,11 +83,23 @@ async function sendTelegram(message) {
   return response.ok;
 }
 
+// ================== MAIN HANDLER ==================
 module.exports = async (req, res) => {
   res.setHeader("Content-Type", "application/json");
 
   try {
-    const clientApiKey = req.query.apikey || req.headers["x-api-key"] || "";
+    // ================== ANTI BOT ==================
+    if (isBotRequest(req)) {
+      return res.status(403).json({
+        status: 403,
+        title: "Blocked",
+        msg: "Bot request terdeteksi."
+      });
+    }
+
+    // ================== API KEY CHECK ==================
+    const clientApiKey =
+      req.query.apikey || req.headers["x-api-key"] || "";
 
     if (clientApiKey !== CONFIG.apiKey) {
       return res.status(403).json({
@@ -65,7 +109,9 @@ module.exports = async (req, res) => {
       });
     }
 
+    // ================== INPUT ==================
     const ket = String(req.query.ket || req.body?.ket || "").trim();
+
     const ip = (
       req.headers["x-forwarded-for"] ||
       req.socket?.remoteAddress ||
@@ -83,7 +129,7 @@ module.exports = async (req, res) => {
     if (ket.length < 3) {
       return res.status(400).json({
         status: 400,
-        title: "Data Terlalu Pendek",
+        title: "Terlalu Pendek",
         msg: "Minimal 3 karakter."
       });
     }
@@ -91,11 +137,12 @@ module.exports = async (req, res) => {
     if (ket.length > CONFIG.maxLength) {
       return res.status(400).json({
         status: 400,
-        title: "Data Terlalu Panjang",
+        title: "Terlalu Panjang",
         msg: "Melebihi batas maksimum."
       });
     }
 
+    // ================== RATE LIMIT + DUPLIKAT ==================
     const stored = loadStorage();
     const currentTime = Math.floor(Date.now() / 1000);
     const hash = sha256(ket);
@@ -104,17 +151,12 @@ module.exports = async (req, res) => {
       if (entry.hash === hash) {
         return res.status(409).json({
           status: 409,
-          title: "Duplikat Terdeteksi",
-          msg: "Data yang sama sudah pernah dikirim."
+          title: "Duplikat",
+          msg: "Data sudah pernah dikirim."
         });
       }
-    }
 
-    for (const entry of stored) {
-      if (
-        entry.ip === ip &&
-        currentTime - entry.time < CONFIG.rateLimit
-      ) {
+      if (entry.ip === ip && currentTime - entry.time < CONFIG.rateLimit) {
         return res.status(429).json({
           status: 429,
           title: "Terlalu Cepat",
@@ -123,6 +165,7 @@ module.exports = async (req, res) => {
       }
     }
 
+    // ================== TELEGRAM MESSAGE ==================
     const waktu = new Date().toLocaleString("id-ID", {
       timeZone: "Asia/Jakarta"
     });
@@ -138,10 +181,11 @@ module.exports = async (req, res) => {
       return res.status(500).json({
         status: 500,
         title: "Gagal",
-        msg: "Pesan gagal dikirim ke Telegram."
+        msg: "Gagal kirim ke Telegram."
       });
     }
 
+    // ================== SAVE LOG ==================
     stored.push({
       hash,
       ip,
@@ -155,11 +199,12 @@ module.exports = async (req, res) => {
       title: "Berhasil",
       msg: "Pesan berhasil dikirim."
     });
-  } catch {
+
+  } catch (err) {
     return res.status(500).json({
       status: 500,
       title: "Server Error",
-      msg: "Terjadi kesalahan pada server."
+      msg: "Terjadi kesalahan server."
     });
   }
 };
