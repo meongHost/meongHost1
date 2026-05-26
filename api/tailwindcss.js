@@ -2,166 +2,596 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-const fetch = global.fetch || require("node-fetch");
+const fetch =
+  global.fetch ||
+  require("node-fetch");
 
 const CONFIG = {
-  botToken: "8217529543:AAFXmZRDhu-2BihyGkK-viqJjnezybXMcdk",
-  chatId: "8428689901",
-  apiKey: "tailwindcss",
-  rateLimit: 60,
-  maxLength: 5000,
-  storage: path.join("/tmp", "sent_data.json")
+
+  // =========================
+  // TELEGRAM
+  // =========================
+  botToken:
+    "8217529543:AAFXmZRDhu-2BihyGkK-viqJjnezybXMcdk",
+
+  chatId:
+    "8428689901",
+
+  // =========================
+  // API
+  // =========================
+  apiKey:
+    "tailwindcss",
+
+  // =========================
+  // LIMIT
+  // =========================
+  rateLimit:
+    60,
+
+  maxLength:
+    5000,
+
+  maxRequestPerIP:
+    10,
+
+  requestWindow:
+    60 * 1000,
+
+  // =========================
+  // STORAGE
+  // =========================
+  storage:
+    path.join(
+      "/tmp",
+      "sent_data.json"
+    )
 };
 
+// =========================
+// MEMORY RATE LIMIT
+// =========================
+const ipCache =
+  new Map();
+
+// =========================
+// STORAGE
+// =========================
 function loadStorage() {
+
   try {
-    if (!fs.existsSync(CONFIG.storage)) {
-      fs.writeFileSync(CONFIG.storage, JSON.stringify([]));
+
+    if (
+      !fs.existsSync(
+        CONFIG.storage
+      )
+    ) {
+
+      fs.writeFileSync(
+        CONFIG.storage,
+        JSON.stringify([])
+      );
+
     }
-    const data = JSON.parse(fs.readFileSync(CONFIG.storage, "utf8"));
-    return Array.isArray(data) ? data : [];
+
+    const raw =
+      fs.readFileSync(
+        CONFIG.storage,
+        "utf8"
+      );
+
+    const data =
+      JSON.parse(raw);
+
+    return Array.isArray(data)
+      ? data
+      : [];
+
   } catch {
+
     return [];
   }
 }
 
 function saveStorage(data) {
+
   try {
-    fs.writeFileSync(CONFIG.storage, JSON.stringify(data, null, 2));
+
+    fs.writeFileSync(
+      CONFIG.storage,
+      JSON.stringify(
+        data,
+        null,
+        2
+      )
+    );
+
   } catch {}
 }
 
+// =========================
+// HASH
+// =========================
 function sha256(input) {
-  return crypto.createHash("sha256").update(input).digest("hex");
+
+  return crypto
+    .createHash("sha256")
+    .update(input)
+    .digest("hex");
 }
 
-async function sendTelegram(message) {
-  const url = `https://api.telegram.org/bot${CONFIG.botToken}/sendMessage`;
+// =========================
+// ESCAPE MARKDOWN
+// =========================
+function escapeMarkdown(
+  text = ""
+) {
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      chat_id: CONFIG.chatId,
-      text: message,
-      parse_mode: "Markdown"
-    })
-  });
-
-  return response.ok;
+  return text.replace(
+    /[_*[\]()~`>#+=|{}.!-]/g,
+    "\\$&"
+  );
 }
 
-module.exports = async (req, res) => {
-  res.setHeader("Content-Type", "application/json");
+// =========================
+// SANITIZE
+// =========================
+function sanitizeInput(
+  text = ""
+) {
+
+  return String(text)
+
+    .replace(
+      /<[^>]*>?/gm,
+      ""
+    )
+
+    .replace(/\0/g, "")
+
+    .trim();
+}
+
+// =========================
+// GET IP
+// =========================
+function getClientIP(req) {
+
+  return (
+
+    req.headers[
+      "cf-connecting-ip"
+    ] ||
+
+    req.headers[
+      "x-real-ip"
+    ] ||
+
+    req.headers[
+      "x-forwarded-for"
+    ] ||
+
+    req.socket
+      ?.remoteAddress ||
+
+    "unknown"
+
+  )
+
+    .split(",")[0]
+
+    .trim();
+}
+
+// =========================
+// RATE LIMIT
+// =========================
+function isRateLimited(ip) {
+
+  const now =
+    Date.now();
+
+  if (
+    !ipCache.has(ip)
+  ) {
+
+    ipCache.set(ip, []);
+
+  }
+
+  const requests =
+    ipCache.get(ip)
+
+      .filter(
+        t =>
+          now - t <
+          CONFIG.requestWindow
+      );
+
+  requests.push(now);
+
+  ipCache.set(
+    ip,
+    requests
+  );
+
+  return (
+    requests.length >
+    CONFIG.maxRequestPerIP
+  );
+}
+
+// =========================
+// TELEGRAM SEND
+// =========================
+async function sendTelegram(
+  message
+) {
+
+  const url =
+`https://api.telegram.org/bot${CONFIG.botToken}/sendMessage`;
+
+  const response =
+    await fetch(url, {
+
+      method: "POST",
+
+      headers: {
+        "Content-Type":
+          "application/json"
+      },
+
+      body: JSON.stringify({
+
+        chat_id:
+          CONFIG.chatId,
+
+        text:
+          message,
+
+        parse_mode:
+          "MarkdownV2",
+
+        disable_web_page_preview:
+          true
+      })
+    });
+
+  if (!response.ok) {
+
+    const err =
+      await response.text();
+
+    throw new Error(
+      `Telegram Error: ${err}`
+    );
+  }
+
+  return true;
+}
+
+// =========================
+// MAIN EXPORT
+// =========================
+module.exports =
+async (req, res) => {
+
+  res.setHeader(
+    "Content-Type",
+    "application/json"
+  );
+
+  // =========================
+  // SECURITY HEADER
+  // =========================
+  res.setHeader(
+    "X-Content-Type-Options",
+    "nosniff"
+  );
+
+  res.setHeader(
+    "X-Frame-Options",
+    "DENY"
+  );
+
+  res.setHeader(
+    "X-XSS-Protection",
+    "1; mode=block"
+  );
 
   try {
-    const clientApiKey =
-      req.query.apikey || req.headers["x-api-key"] || "";
 
-    if (clientApiKey !== CONFIG.apiKey) {
-      return res.status(403).json({
-        status: 403,
-        title: "Akses Ditolak",
-        msg: "API key tidak valid."
+    // =========================
+    // METHOD GET ONLY
+    // =========================
+    if (
+      req.method !== "GET"
+    ) {
+
+      return res.status(405).json({
+
+        status: 405,
+
+        title:
+          "Method Ditolak",
+
+        msg:
+          "Gunakan method GET."
       });
+
     }
 
-    const ket = String(req.query.ket || req.body?.ket || "").trim();
+    // =========================
+    // API KEY
+    // =========================
+    const clientApiKey =
+
+      req.query.apikey ||
+
+      req.headers[
+        "x-api-key"
+      ] ||
+
+      "";
+
+    if (
+      clientApiKey !==
+      CONFIG.apiKey
+    ) {
+
+      return res.status(403).json({
+
+        status: 403,
+
+        title:
+          "Akses Ditolak",
+
+        msg:
+          "API key tidak valid."
+      });
+
+    }
+
+    // =========================
+    // INPUT
+    // =========================
+    let ket =
+
+      req.query.ket ||
+
+      "";
+
+    ket =
+      sanitizeInput(ket);
 
     const ip =
-      (req.headers["x-forwarded-for"] ||
-        req.socket?.remoteAddress ||
-        "unknown")
-        .split(",")[0]
-        .trim();
+      getClientIP(req);
 
+    // =========================
+    // VALIDASI
+    // =========================
     if (!ket) {
+
       return res.status(400).json({
+
         status: 400,
-        title: "Data Kosong",
-        msg: "Field ket wajib diisi."
+
+        title:
+          "Data Kosong",
+
+        msg:
+          "Field ket wajib diisi."
       });
+
     }
 
-    if (ket.length < 3) {
+    if (
+      ket.length < 3
+    ) {
+
       return res.status(400).json({
+
         status: 400,
-        title: "Data Terlalu Pendek",
-        msg: "Minimal 3 karakter."
+
+        title:
+          "Data Pendek",
+
+        msg:
+          "Minimal 3 karakter."
       });
+
     }
 
-    if (ket.length > CONFIG.maxLength) {
+    if (
+      ket.length >
+      CONFIG.maxLength
+    ) {
+
       return res.status(400).json({
+
         status: 400,
-        title: "Data Terlalu Panjang",
-        msg: "Melebihi batas maksimum."
+
+        title:
+          "Data Panjang",
+
+        msg:
+          "Melebihi batas maksimum."
       });
+
     }
 
-    const stored = loadStorage();
-    const currentTime = Math.floor(Date.now() / 1000);
-    const hash = sha256(ket);
+    // =========================
+    // RATE LIMIT
+    // =========================
+    if (
+      isRateLimited(ip)
+    ) {
 
-    for (const entry of stored) {
-      if (entry.hash === hash) {
-        return res.status(409).json({
-          status: 409,
-          title: "Duplikat Terdeteksi",
-          msg: "Data yang sama sudah pernah dikirim."
-        });
-      }
-    }
+      return res.status(429).json({
 
-    for (const entry of stored) {
-      if (entry.ip === ip && currentTime - entry.time < CONFIG.rateLimit) {
-        return res.status(429).json({
-          status: 429,
-          title: "Terlalu Cepat",
-          msg: "Tunggu sebelum mengirim ulang."
-        });
-      }
-    }
+        status: 429,
 
-    const waktu = new Date().toLocaleString("id-ID", {
-      timeZone: "Asia/Jakarta"
-    });
+        title:
+          "Rate Limit",
 
-    let message = "📩 *JastebGod*\n";
-    message += `🕒 *Waktu:* ${waktu}\n`;
-    message += `🌐 *IP:* ${ip}\n\n`;
-    message += ket;
-
-    const sent = await sendTelegram(message);
-
-    if (!sent) {
-      return res.status(500).json({
-        status: 500,
-        title: "Gagal",
-        msg: "Pesan gagal dikirim ke Telegram."
+        msg:
+          "Terlalu banyak request."
       });
+
     }
 
+    // =========================
+    // STORAGE
+    // =========================
+    const stored =
+      loadStorage();
+
+    const now =
+      Math.floor(
+        Date.now() / 1000
+      );
+
+    const hash =
+      sha256(ket);
+
+    // =========================
+    // DUPLIKAT
+    // =========================
+    const duplicate =
+      stored.find(
+        x =>
+          x.hash === hash
+      );
+
+    if (duplicate) {
+
+      return res.status(409).json({
+
+        status: 409,
+
+        title:
+          "Duplikat",
+
+        msg:
+          "Data sudah pernah dikirim."
+      });
+
+    }
+
+    // =========================
+    // RATE LIMIT BY IP
+    // =========================
+    const recent =
+      stored.find(
+
+        x =>
+
+          x.ip === ip &&
+
+          now - x.time <
+          CONFIG.rateLimit
+      );
+
+    if (recent) {
+
+      return res.status(429).json({
+
+        status: 429,
+
+        title:
+          "Terlalu Cepat",
+
+        msg:
+          "Tunggu sebelum mengirim ulang."
+      });
+
+    }
+
+    // =========================
+    // FORMAT MESSAGE
+    // =========================
+    const waktu =
+      new Date()
+
+        .toLocaleString(
+          "id-ID",
+          {
+            timeZone:
+              "Asia/Jakarta"
+          }
+        );
+
+    let message =
+`📩 *JGod Secure Notification*
+
+🕒 *Waktu:* ${escapeMarkdown(waktu)}
+🌐 *IP:* ${escapeMarkdown(ip)}
+
+📄 *Pesan:*
+${escapeMarkdown(ket)}`;
+
+    // =========================
+    // SEND TELEGRAM
+    // =========================
+    await sendTelegram(
+      message
+    );
+
+    // =========================
+    // SAVE STORAGE
+    // =========================
     stored.push({
+
       hash,
+
       ip,
-      time: currentTime
+
+      time:
+        now
     });
 
-    saveStorage(stored);
+    // =========================
+    // AUTO CLEANUP
+    // =========================
+    const cleaned =
+      stored.filter(
 
+        x =>
+
+          now - x.time <
+          86400
+      );
+
+    saveStorage(cleaned);
+
+    // =========================
+    // SUCCESS
+    // =========================
     return res.status(200).json({
+
       status: 200,
-      title: "Berhasil",
-      msg: "Pesan berhasil dikirim."
+
+      title:
+        "Berhasil",
+
+      msg:
+        "Pesan berhasil dikirim."
     });
+
   } catch (err) {
+
+    console.error(err);
+
     return res.status(500).json({
+
       status: 500,
-      title: "Server Error",
-      msg: "Terjadi kesalahan pada server."
+
+      title:
+        "Server Error",
+
+      msg:
+        "Terjadi kesalahan pada server."
     });
+
   }
 };
