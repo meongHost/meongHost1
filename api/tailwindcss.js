@@ -153,6 +153,83 @@ function sanitizeInput(
 }
 
 // =========================
+// DETECT ATTACK
+// =========================
+function detectFlags(text = "") {
+
+  const flags = []
+
+  const lower =
+    text.toLowerCase()
+
+  // SQLI
+  const sqlPatterns = [
+    "select *",
+    "union select",
+    "drop table",
+    "insert into",
+    "' or '1'='1",
+    "--",
+    ";--"
+  ]
+
+  // XSS
+  const xssPatterns = [
+    "<script",
+    "javascript:",
+    "onerror=",
+    "alert(",
+    "<img"
+  ]
+
+  // SHELL
+  const shellPatterns = [
+    "rm -rf",
+    "wget ",
+    "curl ",
+    "bash ",
+    "chmod 777",
+    "exec("
+  ]
+
+  // LOOP SQLI
+  for (const p of sqlPatterns) {
+
+    if (lower.includes(p)) {
+      flags.push("SQLI")
+      break
+    }
+  }
+
+  // LOOP XSS
+  for (const p of xssPatterns) {
+
+    if (lower.includes(p)) {
+      flags.push("XSS")
+      break
+    }
+  }
+
+  // LOOP SHELL
+  for (const p of shellPatterns) {
+
+    if (lower.includes(p)) {
+      flags.push("SHELL")
+      break
+    }
+  }
+
+  // SPAM
+  if (
+    text.length > 1000
+  ) {
+    flags.push("SPAM")
+  }
+
+  return flags
+}
+
+// =========================
 // GET IP
 // =========================
 function getClientIP(req) {
@@ -225,7 +302,8 @@ function isRateLimited(ip) {
 // TELEGRAM SEND
 // =========================
 async function sendTelegram(
-  message
+  message,
+  ket
 ) {
 
   const url =
@@ -253,7 +331,20 @@ async function sendTelegram(
           "MarkdownV2",
 
         disable_web_page_preview:
-          true
+          true,
+
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "📋 Copy Payload",
+                copy_text: {
+                  text: ket
+                }
+              }
+            ]
+          ]
+        }
       })
     });
 
@@ -421,6 +512,33 @@ async (req, res) => {
     }
 
     // =========================
+    // DETECT DANGER
+    // =========================
+    const dangerFlags =
+      detectFlags(ket)
+
+    if (
+      dangerFlags.includes("SQLI") ||
+      dangerFlags.includes("XSS") ||
+      dangerFlags.includes("SHELL")
+    ) {
+
+      return res.status(403).json({
+
+        status: 403,
+
+        title:
+          "Payload Berbahaya",
+
+        msg:
+          "Request terdeteksi berbahaya.",
+
+        flags:
+          dangerFlags
+      })
+    }
+
+    // =========================
     // RATE LIMIT
     // =========================
     if (
@@ -521,20 +639,55 @@ async (req, res) => {
           }
         );
 
+    const flags =
+      detectFlags(ket)
+
+    const status =
+      flags.length > 0
+        ? "⚠️ SUSPICIOUS"
+        : "✅ CLEAN"
+
+    const flagText =
+      flags.length > 0
+        ? flags.join(", ")
+        : "NONE"
+
     let message =
-`📩 *JGod Secure Notification*
+`
+╭━━━━━━━━━━━━━━━━━━⬣
+┃ 🚨 *JOEST27 SECURITY*
+╰━━━━━━━━━━━━━━━━━━⬣
 
-🕒 *Waktu:* ${escapeMarkdown(waktu)}
-🌐 *IP:* ${escapeMarkdown(ip)}
+┌〔 📡 REQUEST INFO 〕
+┃ 🌐 IP :
+┃ ${escapeMarkdown(ip)}
+┃
+┃ 🕒 Waktu :
+┃ ${escapeMarkdown(waktu)}
+└──────────────⬣
 
-📄 *Pesan:*
-${escapeMarkdown(ket)}`;
+┌〔 🛡 SECURITY STATUS 〕
+┃ ${escapeMarkdown(status)}
+┃
+┃ 🚩 Flag :
+┃ ${escapeMarkdown(flagText)}
+└──────────────⬣
+
+┌〔 📄 PAYLOAD 〕
+${escapeMarkdown(ket)}
+└──────────────⬣
+
+╭━━━━━━━━━━━━━━━━━━⬣
+┃ 🤖 JOEST27 PROTECTION
+╰━━━━━━━━━━━━━━━━━━⬣
+`;
 
     // =========================
     // SEND TELEGRAM
     // =========================
     await sendTelegram(
-      message
+      message,
+      ket
     );
 
     // =========================
@@ -591,6 +744,7 @@ ${escapeMarkdown(ket)}`;
 
       msg:
         "Terjadi kesalahan pada server."
+
     });
 
   }
