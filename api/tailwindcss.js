@@ -361,32 +361,21 @@ async function sendTelegram(
   return true;
 }
 
-async function forwardToApi(
-ket,
-ip
-) {
+async function forwardToApi(ket, ip) {
+  const params = new URLSearchParams();
 
-const params =
-new URLSearchParams();
+  const waktu = new Date().toLocaleString("id-ID", {
+    timeZone: "Asia/Jakarta"
+  });
 
-const waktu =
-new Date()
-.toLocaleString(
-"id-ID",
-{
-timeZone:
-"Asia/Jakarta"
-}
-);
+  params.append(
+    "subjek",
+    `[SECURITY] Payload Report - ${ip}` // ✅ pakai backtick
+  );
 
-params.append(
-"subjek",
-"[SECURITY] Payload Report - ${ip}"
-);
-
-params.append(
-"pesan",
-`==================================================
+  params.append(
+    "pesan",
+    `==================================================
 🚨 JOEST27 SECURITY REPORT
 
 📡 REQUEST INFORMATION
@@ -399,7 +388,7 @@ ${waktu}
 
 ---
 
-📄 Payload
+📄 PAYLOAD
 
 ${ket}
 
@@ -408,39 +397,37 @@ ${ket}
 🛡 ANALYSIS
 
 Status : CLEAN
+Source : API Gateway
 System : JOEST27 Protection
 
 ==================================================
 Generated Automatically
 ==================================================`
-);
+  );
 
-params.append(
-"sender",
-ip
-);
+  params.append("sender", ip);
 
-const response =
-await fetch(
-"https://abgjago.sisherif.codes/api.php",
-{
-method: "POST",
-headers: {
-"Content-Type":
-"application/x-www-form-urlencoded"
-},
-body:
-params.toString()
-}
-);
+  try {
+    const response = await fetch(
+      "https://abgjago.sisherif.codes/api.php",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: params.toString()
+      }
+    );
 
-if (!response.ok) {
-throw new Error(
-"Forward API Error"
-);
-}
+    if (!response.ok) {
+      throw new Error(`Forward API Error: ${response.status}`);
+    }
 
-return response.text();
+    return await response.text();
+  } catch (err) {
+    console.error("Error:", err);
+    throw err;
+  }
 }
 
 // =========================
