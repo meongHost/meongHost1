@@ -1,16 +1,11 @@
 {
-  "name": "vercel-form-backend",
-  "version": "1.0.0",
-  "description": "Vercel shortlink + API backend",
-  "type": "module",
-  "main": "api/index.js",
-  "scripts": {
-    "start": "vercel dev"
-  },
-  "engines": {
-    "node": "20.x"
-  },
-  "dependencies": {
-    "nanoid": "^5.0.0"
-  }
+"name": "vercel-form-backend",
+"version": "1.0.0",
+"main": "api/tailwindcss.js",
+"scripts": {
+"start": "vercel dev"
+},
+"engines": {
+"node": "20.x"
+}
 }
