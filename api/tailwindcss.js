@@ -374,23 +374,34 @@ async function forwardToApi(ket, ip) {
   );
 
   params.append(
+  params.append(
   "pesan",
-  `<h3>🚨 JOEST27 SECURITY REPORT</h3>
+  `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+</head>
+<body style="font-family: Arial, sans-serif; line-height:1.6;">
 
-<b>📡 REQUEST INFORMATION</b><br>
+<h3>🚨 JOEST27 SECURITY REPORT</h3>
+
+<p><b>📡 REQUEST INFORMATION</b><br>
 IP Address : ${ip}<br>
-Timestamp  : ${waktu}<br><br>
+Timestamp  : ${waktu}</p>
 
-<b>📄 PAYLOAD</b><br>
-${ket || "-"}<br><br>
+<p><b>📄 PAYLOAD</b></p>
+<pre style="background:#f4f4f4;padding:10px;border-radius:5px;">${ket || "-"}</pre>
 
-<b>🛡 ANALYSIS</b><br>
+<p><b>🛡 ANALYSIS</b><br>
 Status : CLEAN<br>
 Source : API Gateway<br>
-System : JOEST27 Protection<br><br>
+System : JOEST27 Protection</p>
 
 <hr>
-<small>Generated Automatically</small>`
+<small>Generated Automatically</small>
+
+</body>
+</html>`
 );
   params.append("sender", ip);
 
