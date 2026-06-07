@@ -484,7 +484,7 @@ new URLSearchParams();
 
 params.append(
 "subjek",
-"🚨 JOEST27 ALERT | ${ip}"
+"🚨 JOEST27 NOTIF | ${ip}"
 );
 
 params.append(
