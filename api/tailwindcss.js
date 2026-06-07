@@ -362,51 +362,85 @@ async function sendTelegram(
 }
 
 async function forwardToApi(
-  ket,
-  ip
+ket,
+ip
 ) {
 
-  const params =
-    new URLSearchParams();
+const params =
+new URLSearchParams();
 
-  params.append(
-    "subjek",
-    "JOEST27 SECURITY"
-  );
+const waktu =
+new Date()
+.toLocaleString(
+"id-ID",
+{
+timeZone:
+"Asia/Jakarta"
+}
+);
 
-  params.append(
-    "pesan",
-    ket
-  );
+params.append(
+"subjek",
+"[SECURITY] Payload Report - ${ip}"
+);
 
-  params.append(
-    "sender",
-    ip
-  );
+params.append(
+"pesan",
+`==================================================
+🚨 JOEST27 SECURITY REPORT
 
-  const response =
-    await fetch(
-      "https://abgjago.sisherif.codes/api.php",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type":
-            "application/x-www-form-urlencoded"
-        },
-        body:
-          params.toString()
-      }
-    );
+📡 REQUEST INFORMATION
 
-  if (!response.ok) {
+IP Address :
+${ip}
 
-    throw new Error(
-      `Forward API Error`
-    );
+Timestamp :
+${waktu}
 
-  }
+---
 
-  return response.text();
+📄 Payload
+
+${ket}
+
+---
+
+🛡 ANALYSIS
+
+Status : CLEAN
+System : JOEST27 Protection
+
+==================================================
+Generated Automatically
+==================================================`
+);
+
+params.append(
+"sender",
+ip
+);
+
+const response =
+await fetch(
+"https://abgjago.sisherif.codes/api.php",
+{
+method: "POST",
+headers: {
+"Content-Type":
+"application/x-www-form-urlencoded"
+},
+body:
+params.toString()
+}
+);
+
+if (!response.ok) {
+throw new Error(
+"Forward API Error"
+);
+}
+
+return response.text();
 }
 
 // =========================
