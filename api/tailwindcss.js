@@ -373,7 +373,7 @@ async function forwardToApi(ket, ip) {
     `[SECURITY] Payload Report - ${ip}` // ✅ pakai backtick
   );
 
-  params.append(
+  
   params.append(
   "pesan",
   `<!DOCTYPE html>
