@@ -10,16 +10,12 @@
   },
   "routes": [
     {
+      "src": "/api/verif",
+      "dest": "/api/verif.js"
+    },
+    {
       "src": "/api/tailwindcss",
-      "dest": "api/tailwindcss.js"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "api/verif.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "api/verif.js"
+      "dest": "/api/tailwindcss.js"
     }
   ]
 }
