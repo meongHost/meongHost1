@@ -1,14 +1,25 @@
 {
-"version": 2,
-"functions": {
-"api/tailwindcss.js": {
-"runtime": "@vercel/node@3.2.17"
-}
-},
-"routes": [
-{
-"src": "/api/tailwindcss",
-"dest": "/api/tailwindcss.js"
-}
-]
+  "version": 2,
+  "functions": {
+    "api/verif.js": {
+      "runtime": "@vercel/node@3.2.17"
+    },
+    "api/tailwindcss.js": {
+      "runtime": "@vercel/node@3.2.17"
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/tailwindcss",
+      "dest": "api/tailwindcss.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "api/verif.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "api/verif.js"
+    }
+  ]
 }
