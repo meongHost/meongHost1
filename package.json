@@ -1,11 +1,12 @@
 {
-"name": "vercel-form-backend",
-"version": "1.0.0",
-"main": "api/verif.js",
-"scripts": {
-"start": "vercel dev"
-},
-"engines": {
-"node": "20.x"
-}
+  "name": "vercel-license-system",
+  "version": "1.0.0",
+  "main": "api/verif.js",
+  "type": "module",
+  "scripts": {
+    "start": "vercel dev"
+  },
+  "engines": {
+    "node": "20.x"
+  }
 }
