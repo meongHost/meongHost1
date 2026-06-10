@@ -2,9 +2,7 @@ import fs from "fs";
 
 const file = "./license.json";
 
-/* =========================
-   AUTO CREATE DB
-========================= */
+/* ================= INIT DB ================= */
 function init() {
   if (!fs.existsSync(file)) {
     fs.writeFileSync(file, JSON.stringify({
@@ -12,8 +10,10 @@ function init() {
       apikey: "SITE_KEY",
       redirect: "https://yourdomain.com",
       lock_html: `
-        <h1 style="color:#ff3b3b;">LICENSE BLOCKED</h1>
-        <p>Access denied</p>
+        <div style="text-align:center;font-family:Arial;color:white">
+          <h1 style="color:#ff3b3b">LICENSE BLOCKED</h1>
+          <p>Access denied by server</p>
+        </div>
       `
     }, null, 2));
   }
@@ -21,47 +21,41 @@ function init() {
 
 function load() {
   init();
-  return JSON.parse(fs.readFileSync(file, "utf-8"));
+  return JSON.parse(fs.readFileSync(file, "utf8"));
 }
 
 function save(data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
-/* =========================
-   MAIN HANDLER
-========================= */
-export default function handler(req, res) {
+/* ================= HANDLER ================= */
+export default async function handler(req, res) {
   const data = load();
 
-  res.setHeader("Content-Type", "text/html");
-
   /* ================= API MODE ================= */
-  if (req.query.api == "1") {
+  if (req.query.api === "1") {
     const key = req.query.apikey || "";
 
-    // INVALID KEY
-    if (key !== data.apikey) {
-      return res.json({
+    if (key !== data.apikey || !data.active) {
+      return res.status(200).json({
         active: false,
         redirect: data.redirect,
         lock_html: data.lock_html
       });
     }
 
-    // VALID KEY
-    return res.json({
-      active: data.active
+    return res.status(200).json({
+      active: true
     });
   }
 
   /* ================= ADMIN PANEL ================= */
   if (req.method === "GET") {
-    return res.end(`
+    return res.status(200).send(`
 <!DOCTYPE html>
 <html>
 <head>
-<title>License Panel</title>
+<title>License Admin</title>
 <style>
 body{
   margin:0;
@@ -75,7 +69,7 @@ body{
 }
 
 .box{
-  width:400px;
+  width:420px;
   background:#111827;
   padding:25px;
   border-radius:12px;
@@ -106,21 +100,20 @@ button{
 <body>
 
 <div class="box">
-<h2>🔐 License Admin</h2>
+<h2>🔐 License Admin Panel</h2>
 
 <form method="POST">
-
-<label>Active</label><br>
+<label>
 <input type="checkbox" name="active" ${data.active ? "checked" : ""}>
+ Active
+</label>
 
 <input name="apikey" value="${data.apikey}" placeholder="API KEY">
-
 <input name="redirect" value="${data.redirect}" placeholder="Redirect URL">
 
 <textarea name="lock_html" rows="6">${data.lock_html}</textarea>
 
 <button type="submit">SAVE</button>
-
 </form>
 
 <p>Status:
@@ -135,26 +128,26 @@ ${data.active ? "ACTIVE" : "BLOCKED"}
     `);
   }
 
-  /* ================= SAVE ADMIN ================= */
+  /* ================= SAVE (FIXED SAFE PARSE) ================= */
   if (req.method === "POST") {
-    let body = "";
+    const chunks = [];
 
-    req.on("data", chunk => body += chunk);
-    req.on("end", () => {
-      const post = Object.fromEntries(new URLSearchParams(body));
+    for await (const chunk of req) {
+      chunks.push(chunk);
+    }
 
-      data.active = post.active === "on";
-      data.apikey = post.apikey || data.apikey;
-      data.redirect = post.redirect || data.redirect;
-      data.lock_html = post.lock_html || data.lock_html;
+    const body = Buffer.concat(chunks).toString();
+    const post = Object.fromEntries(new URLSearchParams(body));
 
-      save(data);
+    data.active = post.active === "on";
+    data.apikey = post.apikey || data.apikey;
+    data.redirect = post.redirect || data.redirect;
+    data.lock_html = post.lock_html || data.lock_html;
 
-      res.end("✅ SAVED SUCCESS");
-    });
+    save(data);
 
-    return;
+    return res.status(200).send("✅ SAVED SUCCESS");
   }
 
-  res.end("License System Running");
+  return res.status(200).send("License System Running");
 }
