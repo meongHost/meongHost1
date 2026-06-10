@@ -565,99 +565,54 @@ return results;
 // =========================
 // MAIN EXPORT
 // =========================
-module.exports =
-async (req, res) => {
+module.exports = async (req, res) => {
+  res.setHeader("Content-Type", "application/json");
 
-  res.setHeader(
-    "Content-Type",
-    "application/json"
-  );
-
-  // =========================
-  // SECURITY HEADER
-  // =========================
-  res.setHeader(
-    "X-Content-Type-Options",
-    "nosniff"
-  );
-
-  res.setHeader(
-    "X-Frame-Options",
-    "DENY"
-  );
-
-  res.setHeader(
-    "X-XSS-Protection",
-    "1; mode=block"
-  );
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
 
   try {
 
     // =========================
-    // METHOD GET ONLY
+    // METHOD SUPPORT GET + POST
     // =========================
-    if (
-      req.method !== "GET"
-    ) {
-
+    if (!["GET", "POST"].includes(req.method)) {
       return res.status(405).json({
-
         status: 405,
-
-        title:
-          "Method Ditolak",
-
-        msg:
-          "Gunakan method GET."
+        title: "Method Ditolak",
+        msg: "Gunakan GET atau POST."
       });
-
     }
 
     // =========================
     // API KEY
     // =========================
     const clientApiKey =
-
       req.query.apikey ||
-
-      req.headers[
-        "x-api-key"
-      ] ||
-
+      req.body?.apikey ||
+      req.headers["x-api-key"] ||
       "";
 
-    if (
-      clientApiKey !==
-      CONFIG.apiKey
-    ) {
-
+    if (clientApiKey !== CONFIG.apiKey) {
       return res.status(403).json({
-
         status: 403,
-
-        title:
-          "Akses Ditolak",
-
-        msg:
-          "API key tidak valid."
+        title: "Akses Ditolak",
+        msg: "API key tidak valid."
       });
-
     }
 
     // =========================
-    // INPUT
+    // INPUT SUPPORT GET + POST
     // =========================
     let ket =
-
       req.query.ket ||
-
+      req.body?.ket ||
       "";
 
-    ket =
-      sanitizeInput(ket);
+    ket = sanitizeInput(ket);
 
-    const ip =
-      getClientIP(req);
+    const ip = getClientIP(req);
 
     // =========================
     // VALIDASI
