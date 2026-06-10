@@ -1,60 +1,82 @@
 import fs from "fs";
 
-const file = "./license.json";
+const file = "/tmp/license.json"; // ✅ FIX: pakai /tmp biar aman di Vercel
 
-/* ================= INIT DB ================= */
 function init() {
   if (!fs.existsSync(file)) {
     fs.writeFileSync(file, JSON.stringify({
       active: true,
       apikey: "SITE_KEY",
       redirect: "https://yourdomain.com",
-      lock_html: `
-        <div style="text-align:center;font-family:Arial">
-          <h1 style="color:#ff3b3b">LICENSE BLOCKED</h1>
-          <p>Access denied</p>
-        </div>
-      `
-    }, null, 2));
+      lock_html: `<h1>LICENSE BLOCKED</h1>`
+    }));
   }
 }
 
 function load() {
   init();
-  return JSON.parse(fs.readFileSync(file, "utf8"));
+  return JSON.parse(fs.readFileSync(file, "utf-8"));
 }
 
 function save(data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
-/* ================= MAIN HANDLER ================= */
-export default function handler(req, res) {
+export default async function handler(req, res) {
   const data = load();
 
-  /* ===== API MODE ===== */
-  if (req.url.includes("api=1")) {
+  // ================= API =================
+  if (req.query.api == "1") {
     const key = req.query.apikey || "";
 
     if (key !== data.apikey) {
-      return res.json({
+      return res.status(200).json({
         active: false,
         redirect: data.redirect,
         lock_html: data.lock_html
       });
     }
 
-    return res.json({
-      active: data.active
+    return res.status(200).json({
+      active: true
     });
   }
 
-  /* ===== SAVE ADMIN ===== */
-  if (req.method === "POST") {
-    let body = "";
+  // ================= ADMIN GET =================
+  if (req.method === "GET") {
+    return res.status(200).send(`
+      <html>
+      <body style="background:#0b0f19;color:white;font-family:Arial;padding:40px">
+        <h2>License Panel</h2>
 
-    req.on("data", c => body += c);
-    req.on("end", () => {
+        <form method="POST">
+          <label>Active</label><br>
+          <input type="checkbox" name="active" ${data.active ? "checked" : ""}><br><br>
+
+          <input name="apikey" value="${data.apikey}" style="width:300px"><br><br>
+          <input name="redirect" value="${data.redirect}" style="width:300px"><br><br>
+
+          <textarea name="lock_html" rows="6" style="width:300px">${data.lock_html}</textarea><br><br>
+
+          <button type="submit">SAVE</button>
+        </form>
+
+        <p>Status: ${data.active ? "ACTIVE" : "BLOCKED"}</p>
+      </body>
+      </html>
+    `);
+  }
+
+  // ================= ADMIN POST (FIXED) =================
+  if (req.method === "POST") {
+    try {
+      const buffers = [];
+
+      for await (const chunk of req) {
+        buffers.push(chunk);
+      }
+
+      const body = Buffer.concat(buffers).toString();
       const post = Object.fromEntries(new URLSearchParams(body));
 
       data.active = post.active === "on";
@@ -64,37 +86,11 @@ export default function handler(req, res) {
 
       save(data);
 
-      res.end("OK");
-    });
-
-    return;
+      return res.end("SAVED OK");
+    } catch (e) {
+      return res.status(500).end("ERROR POST");
+    }
   }
 
-  /* ===== ADMIN PANEL ===== */
-  res.setHeader("Content-Type", "text/html");
-  res.end(`
-  <html>
-  <body style="background:#0b0f19;color:white;font-family:Arial">
-    <div style="max-width:400px;margin:100px auto;background:#111827;padding:20px;border-radius:10px">
-      <h2>License Panel</h2>
-
-      <form method="POST">
-        <label>
-          <input type="checkbox" name="active" ${data.active ? "checked" : ""}>
-          Active
-        </label>
-
-        <input name="apikey" value="${data.apikey}" style="width:100%;margin-top:10px;padding:8px">
-        <input name="redirect" value="${data.redirect}" style="width:100%;margin-top:10px;padding:8px">
-
-        <textarea name="lock_html" style="width:100%;margin-top:10px;padding:8px">${data.lock_html}</textarea>
-
-        <button style="width:100%;margin-top:10px;padding:10px">SAVE</button>
-      </form>
-
-      <p>Status: ${data.active ? "ACTIVE" : "BLOCKED"}</p>
-    </div>
-  </body>
-  </html>
-  `);
+  return res.end("OK");
 }
