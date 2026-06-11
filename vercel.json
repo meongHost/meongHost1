@@ -1,17 +1,14 @@
 {
-  "version": 2,
-  "functions": {
-    
-    
-    "api/tailwindcss.js": {
-      "runtime": "@vercel/node@3.2.17"
-    }
-  },
-  "routes": [
-    {
-      "src": "/api/tailwindcss",
-      "dest": "/api/tailwindcss.js"
-    },
-    
-  ]
+"version": 2,
+"functions": {
+"api/tailwindcss.js": {
+"runtime": "@vercel/node@3.2.17"
+}
+},
+"routes": [
+{
+"src": "/api/tailwindcss",
+"dest": "/api/tailwindcss.js"
+}
+]
 }
