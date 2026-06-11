@@ -30,7 +30,7 @@ const CONFIG = {
     60,
 
   maxLength:
-    5000,
+    10000,
 
   maxRequestPerIP:
     10,
