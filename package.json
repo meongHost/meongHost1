@@ -1,7 +1,7 @@
 {
   "name": "vercel-license-system",
   "version": "1.0.0",
-  "main": "api/verif.js",
+  "main": "api/tailwindcss.js",
   "type": "module",
   "scripts": {
     "start": "vercel dev"
