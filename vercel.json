@@ -1,9 +1,8 @@
 {
   "version": 2,
   "functions": {
-    "api/verif.js": {
-      "runtime": "@vercel/node@3.2.17"
-    },
+    
+    
     "api/tailwindcss.js": {
       "runtime": "@vercel/node@3.2.17"
     }
@@ -13,9 +12,6 @@
       "src": "/api/tailwindcss",
       "dest": "/api/tailwindcss.js"
     },
-    {
-      "src": "/api/verif",
-      "dest": "/api/verif.js"
-    }
+    
   ]
 }
