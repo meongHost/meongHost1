@@ -1,12 +1,11 @@
 {
-  "name": "vercel-license-system",
-  "version": "1.0.0",
-  "main": "api/tailwindcss.js",
-  "type": "module",
-  "scripts": {
-    "start": "vercel dev"
-  },
-  "engines": {
-    "node": "20.x"
-  }
+"name": "vercel-form-backend",
+"version": "1.0.0",
+"main": "api/tailwindcss.js",
+"scripts": {
+"start": "vercel dev"
+},
+"engines": {
+"node": "20.x"
+}
 }
