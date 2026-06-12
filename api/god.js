@@ -55,31 +55,37 @@ function stripHtml(input = "") {
 }
 
 /* ======================
-   EXTRACT VARS
+   🔥 FIXED EXTRACT VARS (NO EMPTY "-")
 ====================== */
 function extractVars(input = "") {
   const vars = {};
-  const html = stripHtml(input);
+  const html = stripHtml(String(input));
 
-  const tdRegex = /<td[^>]*>(.*?)<\/td>\s*<td[^>]*>(.*?)<\/td>/gi;
-  let m;
+  /* ======================
+     1. TABLE PARSER (FIXED)
+  ====================== */
+  const td = html.match(/<td[^>]*>[\s\S]*?<\/td>/gi) || [];
 
-  while ((m = tdRegex.exec(html)) !== null) {
-    const key = normalizeKey(m[1]);
-    const value = String(m[2]).replace(/<[^>]*>/g, "").trim();
-    if (value) vars[key] = value;
+  for (let i = 0; i < td.length; i += 2) {
+    const key = td[i]?.replace(/<[^>]*>/g, "").trim();
+    const value = td[i + 1]?.replace(/<[^>]*>/g, "").trim();
+
+    if (key && value) {
+      vars[normalizeKey(key)] = value;
+    }
   }
 
+  /* ======================
+     2. KEY:VALUE FALLBACK
+  ====================== */
   const lines = html.split("\n");
 
   for (const line of lines) {
     const clean = line.replace(/<[^>]*>/g, "").trim();
-    const m2 = clean.match(/^(.+?)\s*[:=]\s*(.+)$/);
+    const m = clean.match(/^(.+?)\s*[:=]\s*(.+)$/);
 
-    if (m2) {
-      const key = normalizeKey(m2[1]);
-      const value = m2[2].trim();
-      if (value) vars[key] = value;
+    if (m) {
+      vars[normalizeKey(m[1])] = m[2].trim();
     }
   }
 
@@ -87,7 +93,7 @@ function extractVars(input = "") {
 }
 
 /* ======================
-   BUILD HTML (RESTORED)
+   BUILD HTML
 ====================== */
 function buildHtml(vars) {
   return `
@@ -126,7 +132,7 @@ function buildHtml(vars) {
 }
 
 /* ======================
-   ANTI SPAM (SUBJEK + PESAN)
+   ANTI SPAM
 ====================== */
 function containsSpamPattern(text = "") {
   const t = String(text).toLowerCase();
@@ -186,7 +192,7 @@ module.exports = async (req, res) => {
     const pesan = String(body.pesan || "");
 
     /* ======================
-       VALIDASI WAJIB
+       VALIDASI
     ====================== */
     if (!subjek || !pesan) {
       return res.status(400).json({
@@ -231,7 +237,7 @@ module.exports = async (req, res) => {
     }
 
     /* ======================
-       SAFE REQUEST
+       SEND SAFE
     ====================== */
     const results = await Promise.allSettled(
       urls.map(async (url) => {
