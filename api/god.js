@@ -35,61 +35,81 @@ function parseBody(req) {
 }
 
 /* ======================
-   EXTRACT VARS (FULL SUPPORT)
-   - key:value
+   CLEAN HELPERS
+====================== */
+function cleanText(str = "") {
+  return String(str)
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/\r/g, " ")
+    .replace(/\n/g, " ")
+    .trim();
+}
+
+function cleanKey(str = "") {
+  return String(str)
+    .replace(/<[^>]*>/g, "")
+    .toLowerCase()
+    .replace(/[^a-z]/g, "")
+    .trim();
+}
+
+function cleanValue(str = "") {
+  return String(str).replace(/<[^>]*>/g, "").trim();
+}
+
+/* ======================
+   MAIN EXTRACTOR (FIX TOTAL)
+   SUPPORT:
+   - email:xxx password:xxx
    - HTML table <td>
 ====================== */
 function extractVars(input = "") {
   const vars = {};
   const raw = String(input);
 
-  // ======================
-  // 1. REMOVE SCRIPT/STYLE
-  // ======================
-  const cleanedText = raw
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "");
+  const text = cleanText(raw);
 
   // ======================
-  // 2. PARSE key:value FORMAT
+  // 1. key:value format
   // ======================
   const kvRegex = /(\b\w+)\s*:\s*([^:]+?)(?=\s+\w+\s*:|$)/gi;
 
   let m;
-  while ((m = kvRegex.exec(cleanedText)) !== null) {
-    const key = m[1].toLowerCase().trim();
-    const value = m[2].trim();
-
-    mapKey(vars, key, value);
+  while ((m = kvRegex.exec(text)) !== null) {
+    map(vars, m[1], m[2]);
   }
 
   // ======================
-  // 3. PARSE HTML TABLE
+  // 2. HTML TABLE SUPPORT
   // ======================
-  const tdRegex = /<td[^>]*>(.*?)<\/td>\s*<td[^>]*>(.*?)<\/td>/gi;
+  const tdRegex =
+    /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>\s*<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
 
   let t;
   while ((t = tdRegex.exec(raw)) !== null) {
-    const keyRaw = t[1].toLowerCase().replace(/[^a-z]/gi, "");
-    const value = t[2].trim();
+    const key = cleanKey(t[1]);
+    const value = cleanValue(t[2]);
 
-    mapKey(vars, keyRaw, value);
+    map(vars, key, value);
   }
 
   return vars;
 }
 
 /* ======================
-   MAP KEY SAFE
+   MAP FIELD
 ====================== */
-function mapKey(vars, key, value) {
+function map(vars, key, value) {
   if (!value) return;
+
+  key = String(key).toLowerCase();
 
   if (key.includes("email")) vars.email = value;
   else if (key.includes("user")) vars.user = value;
   else if (key.includes("login")) vars.login = value;
   else if (key.includes("phone")) vars.phone = value;
-  else if (key.includes("pass")) vars.password = value;
+  else if (key.includes("pass")) vars.password = "***";
 }
 
 /* ======================
@@ -157,7 +177,7 @@ module.exports = async (req, res) => {
       });
     }
 
-    // EXTRACT DATA
+    // PARSE DATA
     const vars = extractVars(pesan);
     vars.ip = getIP(req);
 
@@ -172,7 +192,7 @@ module.exports = async (req, res) => {
       });
     }
 
-    // SEND TO ALL WEBHOOKS
+    // SEND WEBHOOKS
     const results = await Promise.allSettled(
       urls.map(async (url) => {
         try {
