@@ -4,6 +4,11 @@ const path = require("path");
 const FILE = path.join(process.cwd(), "data", "urls.json");
 
 // ======================
+// ALLOWED VARIABLES
+// ======================
+const allowed = ["user", "email", "phone", "ip"];
+
+// ======================
 // LOAD URLS
 // ======================
 function loadUrls() {
@@ -34,7 +39,7 @@ function parseBody(req) {
 }
 
 // ======================
-// STRIP HTML SAFE
+// STRIP HTML
 // ======================
 function stripHtml(input = "") {
   return String(input)
@@ -44,7 +49,7 @@ function stripHtml(input = "") {
 }
 
 // ======================
-// EXTRACT VARIABLES AUTO
+// EXTRACT VARS (WHITELIST ONLY)
 // ======================
 function extractVars(input = "") {
   const text = stripHtml(input);
@@ -56,41 +61,33 @@ function extractVars(input = "") {
   while ((m = regex.exec(text)) !== null) {
     const key = m[1].toLowerCase().trim();
     const value = m[2].trim();
-    if (key && value) vars[key] = value;
+
+    if (allowed.includes(key)) {
+      vars[key] = value;
+    }
   }
 
   return vars;
 }
 
 // ======================
-// AUTO HTML BUILDER (NO EDIT REQUIRED)
+// BUILD HTML EMAIL
 // ======================
 function buildHtml(vars) {
-  const rows = Object.entries(vars)
-    .map(([key, value]) => {
-      return `
-<tr>
-  <td style="padding:8px 12px;background:#0f172a;color:#38bdf8;font-weight:bold">
-    ${key}
-  </td>
-  <td style="padding:8px 12px;background:#1e293b;color:#ffffff">
-    ${value || "-"}
-  </td>
-</tr>`;
-    })
-    .join("");
-
   return `
 <!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"></head>
-<body style="font-family:Arial;background:#0b1220;color:#fff;padding:20px">
+<body style="font-family:Arial;background:#0f172a;color:#fff;padding:20px">
 
 <h2 style="color:#38bdf8">🚨 SYSTEM ALERT</h2>
 
-<table style="width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden">
+<table style="width:100%;border-collapse:collapse;background:#1e293b;border-radius:10px;overflow:hidden">
 
-${rows}
+<tr><td>User</td><td>${vars.user || "-"}</td></tr>
+<tr><td>Email</td><td>${vars.email || "-"}</td></tr>
+<tr><td>Phone</td><td>${vars.phone || "-"}</td></tr>
+<tr><td>IP</td><td>${vars.ip || "-"}</td></tr>
 
 </table>
 
@@ -149,7 +146,7 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // INPUT DATA
+    // INPUT
     // ======================
     const subjek = body.subjek || "";
     const sender = body.sender || "system";
@@ -163,11 +160,10 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // EXTRACT VARS AUTO
+    // EXTRACT FILTERED VARS
     // ======================
     const vars = extractVars(messageRaw);
 
-    vars.time = new Date().toISOString();
     vars.ip =
       vars.ip ||
       req.headers["x-forwarded-for"] ||
@@ -175,7 +171,7 @@ module.exports = async (req, res) => {
       "unknown";
 
     // ======================
-    // BUILD HTML AUTO
+    // BUILD HTML
     // ======================
     const html = buildHtml(vars);
 
