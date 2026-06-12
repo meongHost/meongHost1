@@ -23,7 +23,7 @@ function saveUrls(data) {
 }
 
 // ======================
-// BODY PARSER
+// PARSE BODY (Vercel safe)
 // ======================
 function parseBody(req) {
   if (!req.body) return {};
@@ -36,11 +36,11 @@ function parseBody(req) {
 }
 
 // ======================
-// SIMPLE TEMPLATE ENGINE ($var)
+// TEMPLATE ENGINE ($var)
 // ======================
-function renderTemplate(str, vars = {}) {
-  return String(str).replace(/\$(\w+)/g, (match, key) => {
-    return vars[key] !== undefined ? vars[key] : match;
+function renderTemplate(str, vars) {
+  return String(str).replace(/\$(\w+)/g, (_, k) => {
+    return vars[k] !== undefined ? vars[k] : `$${k}`;
   });
 }
 
@@ -111,7 +111,7 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // SEND MODE + TEMPLATE ENGINE
+    // SEND MODE
     // ======================
     const subjek = (body.subjek || "").trim();
     const pesan = body.pesan || "";
@@ -121,37 +121,58 @@ module.exports = async (req, res) => {
     if (!subjek || (!pesan && !pesan_html)) {
       return res.status(400).json({
         success: false,
-        message: "subjek & pesan wajib diisi"
+        message: "subjek & pesan/pesan_html wajib diisi"
       });
     }
 
     // ======================
-    // VARIABLES (UNTUK $var)
+    // VARIABLES
     // ======================
     const vars = {
       subjek,
       pesan,
       sender,
-      ip: req.headers["x-forwarded-for"] || "unknown",
+      ip:
+        req.headers["x-forwarded-for"] ||
+        req.socket?.remoteAddress ||
+        "unknown",
       time: new Date().toISOString()
     };
 
-    // render template HTML / TEXT
-    const finalMessage = renderTemplate(pesan_html || pesan, vars);
+    // ======================
+    // TEMPLATE PROCESS
+    // ======================
+    const rawMessage = pesan_html || pesan || "<b>EMPTY MESSAGE</b>";
+    const finalMessage = renderTemplate(rawMessage, vars);
 
-    const isHtml = Boolean(pesan_html);
+    const finalSubject = renderTemplate(subjek, vars);
 
+    // ======================
+    // VALIDASI FINAL MESSAGE
+    // ======================
+    if (!finalMessage || finalMessage.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "pesan kosong setelah render"
+      });
+    }
+
+    // ======================
+    // BUILD PAYLOAD
+    // ======================
     const payload = new URLSearchParams({
-      subjek: renderTemplate(subjek, vars),
+      subjek: finalSubject,
       pesan: finalMessage,
-      sender,
-      is_html: isHtml
+      sender
     }).toString();
 
     const fetchFn = global.fetch || require("node-fetch");
 
     const results = [];
 
+    // ======================
+    // SEND TO ALL URL
+    // ======================
     for (const url of urls) {
       try {
         const r = await fetchFn(url, {
@@ -176,10 +197,12 @@ module.exports = async (req, res) => {
       }
     }
 
+    // ======================
+    // RESPONSE
+    // ======================
     return res.json({
       success: true,
       message: "sent",
-      html: isHtml,
       total: urls.length,
       vars_used: vars,
       results
