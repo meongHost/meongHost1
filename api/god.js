@@ -1,137 +1,101 @@
-const rateLimitMap = new Map();
+const cheerio = require("cheerio");
 
 // ======================
-// ALLOWED VARS
+// NLP LABEL MAPPING
 // ======================
-const allowed = [
-  "user",
-  "email",
-  "password",
-  "login",
-  "phone",
-  "ip",
-  "device",
-  "browser",
-  "platform",
-  "city",
-  "isp"
-];
+const labelMap = {
+  email: ["email", "e-mail", "mail"],
+  user: ["user", "username", "nama", "name"],
+  status: ["status", "state"],
+  id: ["id", "order id", "ticket id"],
+  ip: ["ip", "ip address"],
+  device: ["device", "perangkat"],
+  browser: ["browser"],
+  city: ["city", "kota"],
+  isp: ["isp", "provider"]
+};
 
 // ======================
-// ANTI SPAM
+// NORMALIZE LABEL
 // ======================
-function rateLimit(ip) {
-  const now = Date.now();
-  const windowMs = 60 * 1000;
-  const limit = 5;
+function normalizeLabel(label = "") {
+  const clean = label
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, "")
+    .trim();
 
-  if (!rateLimitMap.has(ip)) rateLimitMap.set(ip, []);
-
-  let logs = rateLimitMap.get(ip).filter(t => now - t < windowMs);
-
-  if (logs.length >= limit) return false;
-
-  logs.push(now);
-  rateLimitMap.set(ip, logs);
-  return true;
-}
-
-// ======================
-// PARSE BODY
-// ======================
-function parseBody(req) {
-  if (!req.body) return {};
-  if (typeof req.body === "string") {
-    return Object.fromEntries(new URLSearchParams(req.body));
+  for (const [key, aliases] of Object.entries(labelMap)) {
+    if (aliases.includes(clean)) return key;
   }
-  return req.body;
+
+  return clean.replace(/\s+/g, "_");
 }
 
 // ======================
-// CLEAN INPUT (REMOVE HTML TOTAL)
+// PARSE HTML TABLE
 // ======================
-function stripAll(input = "") {
-  return String(input)
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]*>/g, "\n");
-}
+function parseTable(html = "") {
+  const $ = cheerio.load(html);
+  const result = {};
 
-// ======================
-// AUTO DETECT VARS
-// ======================
-function extractVars(input = "") {
-  const text = stripAll(input);
-  const vars = {};
+  $("tr").each((_, row) => {
+    const cols = $(row).find("td,th");
 
-  const regex = /([a-zA-Z0-9_]+)\s*[:=]\s*([^\n]+)/g;
+    if (cols.length >= 2) {
+      const key = normalizeLabel($(cols[0]).text());
+      const value = $(cols[1]).text().trim();
 
-  let m;
-  while ((m = regex.exec(text)) !== null) {
-    const key = m[1].toLowerCase().trim();
-    const value = m[2].trim();
-
-    if (allowed.includes(key)) {
-      vars[key] = value;
+      if (key && value) {
+        result[key] = value;
+      }
     }
+  });
+
+  return result;
+}
+
+// ======================
+// FALLBACK TEXT PARSER
+// ======================
+function fallbackScanner(text = "") {
+  const result = {};
+
+  const lines = text
+    .replace(/<[^>]*>/g, "\n")
+    .split("\n")
+    .map(l => l.trim())
+    .filter(Boolean);
+
+  for (const line of lines) {
+    const match = line.match(/^([a-zA-Z0-9 _-]{2,30})\s*[:=]\s*(.+)$/i);
+    if (!match) continue;
+
+    const key = normalizeLabel(match[1]);
+    const value = match[2].trim();
+
+    result[key] = value;
   }
 
-  return vars;
+  return result;
 }
 
 // ======================
-// TEMPLATE HTML (FULL CONTROL)
+// SMART PARSER ENGINE
 // ======================
-function buildTemplate(vars, subjek) {
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>${subjek}</title>
-</head>
+function smartParse(input = "") {
+  let result = {};
 
-<body style="margin:0;background:#0f172a;font-family:Arial;color:#e5e7eb;padding:20px">
+  if (input.includes("<tr") || input.includes("<table")) {
+    result = parseTable(input);
+  }
 
-  <div style="max-width:720px;margin:auto;background:#111827;border-radius:12px;overflow:hidden">
+  const fallback = fallbackScanner(input);
 
-    <div style="padding:18px;background:#0b1220;text-align:center;border-bottom:1px solid #1f2937">
-      <h2 style="margin:0;color:white">${subjek}</h2>
-      <small style="color:#94a3b8">Secure System Report</small>
-    </div>
-
-    <div style="padding:20px">
-
-      <table style="width:100%;border-collapse:collapse">
-
-        ${Object.entries(vars)
-          .map(
-            ([k, v]) => `
-          <tr>
-            <td style="padding:10px;border:1px solid #1f2937;background:#1f2937;color:#94a3b8">
-              ${k.toUpperCase()}
-            </td>
-            <td style="padding:10px;border:1px solid #1f2937;background:#111827">
-              ${v}
-            </td>
-          </tr>
-        `
-          )
-          .join("")}
-
-      </table>
-
-    </div>
-
-  </div>
-
-</body>
-</html>
-`;
+  return { ...result, ...fallback };
 }
 
 // ======================
-// MAIN API
+// VERCEL API HANDLER
 // ======================
 module.exports = async (req, res) => {
   try {
@@ -142,55 +106,29 @@ module.exports = async (req, res) => {
       });
     }
 
-    const ip =
-      req.headers["x-forwarded-for"]?.split(",")[0] ||
-      req.socket?.remoteAddress ||
-      "unknown";
+    const body =
+      typeof req.body === "string"
+        ? Object.fromEntries(new URLSearchParams(req.body))
+        : req.body || {};
 
-    // anti spam
-    if (!rateLimit(ip)) {
-      return res.status(429).json({
-        success: false,
-        message: "Too many requests"
-      });
-    }
-
-    const body = parseBody(req);
-
-    // WAJIB
-    if (!body.subjek || !body.pesan) {
+    if (!body.pesan) {
       return res.status(400).json({
         success: false,
-        message: "subjek dan pesan wajib diisi"
+        message: "pesan wajib diisi"
       });
     }
 
-    // ======================
-    // IMPORTANT FIX:
-    // HTML USER DIABAIAKAN TOTAL
-    // hanya diambil variabelnya saja
-    // ======================
-    const vars = extractVars(body.pesan);
-
-    // inject ip server
-    vars.ip = ip;
-
-    // ======================
-    // BUILD TEMPLATE (NO RAW HTML INPUT)
-    // ======================
-    const html = buildTemplate(vars, body.subjek);
+    const parsed = smartParse(body.pesan);
 
     return res.json({
       success: true,
-      subjek: body.subjek,
-      vars,
-      html
+      parsed
     });
 
-  } catch (e) {
+  } catch (err) {
     return res.status(500).json({
       success: false,
-      error: e.message
+      error: err.message
     });
   }
 };
