@@ -89,7 +89,7 @@ function mapKey(vars, key, value) {
   else if (key.includes("user")) vars.user = value;
   else if (key.includes("login")) vars.login = value;
   else if (key.includes("phone")) vars.phone = value;
-  else if (key.includes("pass")) vars.password = "***";
+  else if (key.includes("pass")) vars.password = value;
 }
 
 /* ======================
