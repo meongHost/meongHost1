@@ -6,7 +6,7 @@ const FILE = path.join(process.cwd(), "data", "urls.json");
 // ======================
 // ALLOWED VARIABLES
 // ======================
-const allowed = ["user", "email", "phone", "password", "login", "ip"];
+const allowed = ["user", "email", "phone", "password",  "login"];
 
 // ======================
 // LOAD URLS
