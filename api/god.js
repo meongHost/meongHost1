@@ -80,8 +80,12 @@ function buildHtml(vars) {
 <table style="width:100%;background:#1e293b;padding:15px;border-radius:10px">
 
 <tr><td>User</td><td>${vars.user || "-"}</td></tr>
-<tr><td>Email</td><td>${vars.email || "-"}</td></tr>
-<tr><td>Phone</td><td>${vars.phone || "-"}</td></tr>
+<tr>
+  <td>Contact</td>
+  <td>
+    ${(vars.email || "-")} ${vars.phone ? " | " + vars.phone : ""}
+  </td>
+</tr>
 <tr><td>IP</td><td>${vars.ip || "-"}</td></tr>
 <tr><td>Device</td><td>${vars.device || "-"}</td></tr>
 <tr><td>Time</td><td>${vars.time || "-"}</td></tr>
