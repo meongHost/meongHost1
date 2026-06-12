@@ -1,54 +1,21 @@
 const fs = require("fs");
 const path = require("path");
 
-const file = path.join(process.cwd(), "data", "urls.json");
+const FILE = path.join(process.cwd(), "data", "urls.json");
 
-// helper load
+// load JSON
 function loadUrls() {
   try {
-    return JSON.parse(fs.readFileSync(file, "utf8"));
+    if (!fs.existsSync(FILE)) return [];
+    return JSON.parse(fs.readFileSync(FILE, "utf8"));
   } catch {
     return [];
   }
 }
 
-// helper save
+// save JSON
 function saveUrls(data) {
-  fs.writeFileSync(file, JSON.stringify(data, null, 2));
-}
-
-// forward ke semua URL (mirip curl PHP kamu)
-async function forwardAll(dataObj) {
-  const fetchFn = global.fetch || require("node-fetch");
-  const urls = loadUrls();
-
-  const results = [];
-
-  for (const url of urls) {
-    try {
-      const res = await fetchFn(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body: new URLSearchParams(dataObj).toString()
-      });
-
-      results.push({
-        url,
-        status: res.status,
-        success: res.ok
-      });
-    } catch (err) {
-      results.push({
-        url,
-        success: false,
-        error: err.message
-      });
-    }
-  }
-
-  return results;
+  fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
 }
 
 module.exports = async (req, res) => {
@@ -60,13 +27,20 @@ module.exports = async (req, res) => {
       });
     }
 
-    const action = req.body?.action || "send";
+    const body =
+      typeof req.body === "string"
+        ? Object.fromEntries(new URLSearchParams(req.body))
+        : req.body || {};
 
-    // =========================
+    const action = body.action || "send";
+
+    let urls = loadUrls();
+
+    // ======================
     // ADD URL
-    // =========================
+    // ======================
     if (action === "add-url") {
-      const url = req.body?.url;
+      const url = body.url;
 
       if (!url) {
         return res.status(400).json({
@@ -75,17 +49,10 @@ module.exports = async (req, res) => {
         });
       }
 
-      const urls = loadUrls();
-
-      if (urls.includes(url)) {
-        return res.status(409).json({
-          success: false,
-          message: "URL sudah ada"
-        });
+      if (!urls.includes(url)) {
+        urls.push(url);
+        saveUrls(urls);
       }
-
-      urls.push(url);
-      saveUrls(urls);
 
       return res.json({
         success: true,
@@ -94,15 +61,13 @@ module.exports = async (req, res) => {
       });
     }
 
-    // =========================
+    // ======================
     // DELETE URL
-    // =========================
+    // ======================
     if (action === "delete-url") {
-      const url = req.body?.url;
+      const url = body.url;
 
-      let urls = loadUrls();
       urls = urls.filter(x => x !== url);
-
       saveUrls(urls);
 
       return res.json({
@@ -112,12 +77,10 @@ module.exports = async (req, res) => {
       });
     }
 
-    // =========================
+    // ======================
     // LIST URL
-    // =========================
+    // ======================
     if (action === "list-url") {
-      const urls = loadUrls();
-
       return res.json({
         success: true,
         total: urls.length,
@@ -125,32 +88,59 @@ module.exports = async (req, res) => {
       });
     }
 
-    // =========================
-    // SEND MODE (mirip PHP kamu)
-    // =========================
-    const subjek = String(req.body?.subjek || "").trim();
-    const pesan = String(req.body?.pesan || "").trim();
-    const sender = String(req.body?.sender || "").trim();
+    // ======================
+    // SEND MODE
+    // ======================
+    const subjek = (body.subjek || "").trim();
+    const pesan = (body.pesan || "").trim();
+    const sender = body.sender || "";
 
     if (!subjek || !pesan) {
       return res.status(400).json({
         success: false,
-        message: "subjek dan pesan wajib diisi"
+        message: "subjek & pesan wajib diisi"
       });
     }
 
-    const payload = {
+    const payload = new URLSearchParams({
       subjek,
       pesan,
       sender
-    };
+    }).toString();
 
-    const result = await forwardAll(payload);
+    const fetchFn = global.fetch || require("node-fetch");
 
-    return res.status(200).json({
+    const results = [];
+
+    for (const url of urls) {
+      try {
+        const r = await fetchFn(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+          },
+          body: payload
+        });
+
+        results.push({
+          url,
+          status: r.status,
+          success: r.ok
+        });
+      } catch (err) {
+        results.push({
+          url,
+          success: false,
+          error: err.message
+        });
+      }
+    }
+
+    return res.json({
       success: true,
-      message: "Data dikirim ke semua URL",
-      result
+      message: "sent",
+      total: urls.length,
+      results
     });
 
   } catch (err) {
