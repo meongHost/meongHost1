@@ -11,7 +11,7 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // PARSE BODY (FORM / JSON SAFE)
+    // PARSE BODY
     // ======================
     let body = req.body;
 
@@ -19,9 +19,9 @@ module.exports = async (req, res) => {
       body = Object.fromEntries(new URLSearchParams(body));
     }
 
-    const messageRaw = body.message || body.pesan || "";
+    const message = body.message || body.pesan || "";
 
-    if (!messageRaw) {
+    if (!message) {
       return res.status(400).json({
         success: false,
         message: "message wajib diisi"
@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // CLEAN HTML + TEXT
+    // CLEAN HTML / TEXT
     // ======================
     const cleanText = (text) => {
       return String(text)
@@ -41,14 +41,12 @@ module.exports = async (req, res) => {
     };
 
     // ======================
-    // AUTO DETECT VARIABLES (FIXED)
+    // AUTO DETECT VARIABLES
     // ======================
     const extractVars = (input) => {
       const text = cleanText(input);
-
       const vars = {};
 
-      // 1. KEY:VALUE PER LINE (FIX NYA DI SINI)
       const lines = text.split("\n");
 
       for (const line of lines) {
@@ -60,11 +58,11 @@ module.exports = async (req, res) => {
         }
       }
 
-      // 2. AUTO EMAIL
+      // auto email
       const email = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}/i);
       if (email) vars.email = email[0];
 
-      // 3. AUTO PHONE
+      // auto phone
       const phone = text.match(/\b\d{8,15}\b/);
       if (phone) vars.phone = phone[0];
 
@@ -72,7 +70,7 @@ module.exports = async (req, res) => {
     };
 
     // ======================
-    // ANTI SPAM (IP RATE LIMIT)
+    // ANTI SPAM (IP COOLDOWN 3 DETIK)
     // ======================
     const ip =
       req.headers["x-forwarded-for"]?.split(",")[0] ||
@@ -86,20 +84,20 @@ module.exports = async (req, res) => {
     if (global.spam[ip] && now - global.spam[ip] < 3000) {
       return res.status(429).json({
         success: false,
-        message: "Too fast (anti spam 3s)"
+        message: "Too fast (anti spam 3 detik)"
       });
     }
 
     global.spam[ip] = now;
 
     // ======================
-    // PROCESS VARIABLES
+    // PROCESS VARS
     // ======================
-    const vars = extractVars(messageRaw);
+    const vars = extractVars(message);
     vars.ip = ip;
 
     // ======================
-    // BUILD HTML AUTO REPORT
+    // BUILD HTML REPORT
     // ======================
     const html = `
 <!DOCTYPE html>
@@ -115,7 +113,7 @@ module.exports = async (req, res) => {
 
   <div style="padding:18px;background:#0b1220;text-align:center;border-bottom:1px solid #1f2937">
     <h2 style="margin:0">System Report</h2>
-    <small style="color:#94a3b8">Auto Generated</small>
+    <small style="color:#94a3b8">Auto Generated System</small>
   </div>
 
   <div style="padding:20px">
