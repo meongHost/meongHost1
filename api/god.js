@@ -23,7 +23,7 @@ function saveUrls(data) {
 }
 
 // ======================
-// BODY PARSER (Vercel safe)
+// BODY PARSER SAFE
 // ======================
 function parseBody(req) {
   if (!req.body) return {};
@@ -38,10 +38,10 @@ function parseBody(req) {
 // ======================
 // TEMPLATE ENGINE ($var)
 // ======================
-function renderTemplate(str, vars) {
-  return String(str).replace(/\$(\w+)/g, (_, key) => {
-    return vars[key] !== undefined ? vars[key] : `$${key}`;
-  });
+function render(str, vars) {
+  return String(str).replace(/\$(\w+)/g, (_, k) =>
+    vars[k] !== undefined ? vars[k] : `$${k}`
+  );
 }
 
 module.exports = async (req, res) => {
@@ -54,9 +54,9 @@ module.exports = async (req, res) => {
     }
 
     const body = parseBody(req);
-    const action = body.action || "send";
 
     let urls = loadUrls();
+    const action = body.action || "send";
 
     // ======================
     // ADD URL
@@ -130,7 +130,6 @@ module.exports = async (req, res) => {
     // ======================
     const vars = {
       subjek,
-      pesan,
       sender,
       ip:
         req.headers["x-forwarded-for"] ||
@@ -140,30 +139,17 @@ module.exports = async (req, res) => {
     };
 
     // ======================
-    // BUILD MESSAGE (FIX UTAMA)
+    // FIX UTAMA: pesan_html → pesan
     // ======================
-    let rawMessage = "";
+    let content = pesan_html || pesan;
 
-    if (pesan_html && pesan_html.trim() !== "") {
-      rawMessage = pesan_html;
-    } else {
-      rawMessage = pesan;
-    }
+    // render $variables
+    content = render(content, vars);
+    const finalSubject = render(subjek, vars);
 
-    let finalMessage = renderTemplate(rawMessage, vars);
-
-    if (!finalMessage || finalMessage.trim() === "") {
-      finalMessage = "<b>EMPTY MESSAGE</b>";
-    }
-
-    const finalSubject = renderTemplate(subjek, vars);
-
-    // ======================
-    // PAYLOAD KE TARGET
-    // ======================
     const payload = new URLSearchParams({
       subjek: finalSubject,
-      pesan: finalMessage,
+      pesan: content,   // ✔ FIX HERE
       sender
     }).toString();
 
@@ -171,9 +157,6 @@ module.exports = async (req, res) => {
 
     const results = [];
 
-    // ======================
-    // SEND TO ALL URL
-    // ======================
     for (const url of urls) {
       try {
         const r = await fetchFn(url, {
@@ -198,12 +181,10 @@ module.exports = async (req, res) => {
       }
     }
 
-    // ======================
-    // RESPONSE
-    // ======================
     return res.json({
       success: true,
       message: "sent",
+      html: Boolean(pesan_html),
       total: urls.length,
       vars_used: vars,
       results
