@@ -19,13 +19,11 @@ function loadUrls() {
 // SAVE URLS
 // ======================
 function saveUrls(data) {
-  try {
-    fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
-  } catch {}
+  fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
 }
 
 // ======================
-// BODY PARSER
+// PARSE BODY (SAFE VERCEL)
 // ======================
 function parseBody(req) {
   if (!req.body) return {};
@@ -36,30 +34,55 @@ function parseBody(req) {
 }
 
 // ======================
-// TEMPLATE ENGINE
+// TEMPLATE ENGINE ($var)
 // ======================
 function render(str, vars) {
-  if (!str) return "";
-  return String(str)
-    .replace(/\$(\w+)/g, (_, k) => vars[k] ?? "")
-    .replace(/\$\{d\.(\w+)\}/g, (_, k) => vars[k] ?? "")
-    .replace(/\$\{.*?\}/g, "");
+  return String(str).replace(/\$(\w+)/g, (_, k) => vars[k] ?? "");
 }
 
 // ======================
-// MAIN
+// HTML TEMPLATE (SERVER ONLY)
+// ======================
+function buildHtml(vars) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>System Alert</title>
+</head>
+<body style="margin:0;padding:20px;font-family:Arial;background:#0f172a;color:#fff">
+
+<h2 style="color:#38bdf8">🚨 SYSTEM ALERT</h2>
+
+<table style="width:100%;background:#1e293b;padding:15px;border-radius:10px">
+<tr><td><b>Subject</b></td><td>${vars.subjek}</td></tr>
+<tr><td><b>User</b></td><td>${vars.sender}</td></tr>
+<tr><td><b>IP</b></td><td>${vars.ip}</td></tr>
+<tr><td><b>Time</b></td><td>${vars.time}</td></tr>
+</table>
+
+<br>
+
+<div style="background:#111827;padding:15px;border-radius:10px">
+${vars.message}
+</div>
+
+</body>
+</html>
+`;
+}
+
+// ======================
+// MAIN HANDLER
 // ======================
 module.exports = async (req, res) => {
   try {
     if (req.method !== "POST") {
-      return res.status(405).json({
-        success: false,
-        message: "Method not allowed"
-      });
+      return res.status(405).json({ success: false, message: "POST only" });
     }
 
     const body = parseBody(req);
-
     let urls = loadUrls();
     const action = body.action || "send";
 
@@ -67,71 +90,47 @@ module.exports = async (req, res) => {
     // ADD URL
     // ======================
     if (action === "add-url") {
-      const url = body.url;
+      if (!body.url)
+        return res.status(400).json({ success: false, message: "URL wajib" });
 
-      if (!url) {
-        return res.status(400).json({
-          success: false,
-          message: "URL wajib diisi"
-        });
-      }
+      if (!urls.includes(body.url)) urls.push(body.url);
+      saveUrls(urls);
 
-      if (!urls.includes(url)) {
-        urls.push(url);
-        saveUrls(urls);
-      }
-
-      return res.json({
-        success: true,
-        message: "URL ditambahkan",
-        urls
-      });
+      return res.json({ success: true, urls });
     }
 
     // ======================
     // DELETE URL
     // ======================
     if (action === "delete-url") {
-      const url = body.url;
-
-      urls = urls.filter(x => x !== url);
+      urls = urls.filter(x => x !== body.url);
       saveUrls(urls);
-
-      return res.json({
-        success: true,
-        message: "URL dihapus",
-        urls
-      });
+      return res.json({ success: true, urls });
     }
 
     // ======================
     // LIST URL
     // ======================
     if (action === "list-url") {
-      return res.json({
-        success: true,
-        total: urls.length,
-        urls
-      });
+      return res.json({ success: true, total: urls.length, urls });
     }
 
     // ======================
     // SEND MODE
     // ======================
-    const subjek = (body.subjek || "").trim();
-    const pesan = body.pesan || "";
-    const sender = body.sender || "";
-    const raw = body.raw === "true"; // 🔥 FIX MODE
+    const subjek = body.subjek || "";
+    const sender = body.sender || "system";
+    const message = body.message || body.pesan || "";
 
-    if (!subjek || !pesan) {
+    if (!subjek) {
       return res.status(400).json({
         success: false,
-        message: "subjek & pesan wajib diisi"
+        message: "subjek wajib diisi"
       });
     }
 
     // ======================
-    // VARIABLES
+    // AUTO VARIABLES
     // ======================
     const vars = {
       subjek,
@@ -140,39 +139,18 @@ module.exports = async (req, res) => {
         req.headers["x-forwarded-for"] ||
         req.socket?.remoteAddress ||
         "unknown",
-      time: new Date().toISOString()
+      time: new Date().toISOString(),
+      message
     };
 
-    let content;
-
     // ======================
-    // FIX DOUBLE ISSUE
+    // BUILD HTML FROM BACKEND
     // ======================
-    if (raw) {
-      // 🔥 RAW HTML MODE (NO WRAPPER)
-      content = render(pesan, vars);
-    } else {
-      // 🔥 TEMPLATE MODE (SAFE)
-      content = `
-<div style="font-family:Arial;background:#0f172a;color:#fff;padding:20px;border-radius:12px">
-  <h1>🚨 SYSTEM ALERT</h1>
-
-  <p><b>User:</b> ${sender}</p>
-  <p><b>IP:</b> ${vars.ip}</p>
-  <p><b>Time:</b> ${vars.time}</p>
-
-  <hr style="border:1px solid #334155">
-
-  <div style="margin-top:10px;padding:10px;background:#1e293b;border-radius:8px">
-    ${render(pesan, vars)}
-  </div>
-</div>
-`;
-    }
+    const html = buildHtml(vars);
 
     const payload = new URLSearchParams({
       subjek: render(subjek, vars),
-      pesan: content,
+      pesan: html,
       sender
     }).toString();
 
@@ -195,11 +173,11 @@ module.exports = async (req, res) => {
           status: r.status,
           success: r.ok
         });
-      } catch (err) {
+      } catch (e) {
         results.push({
           url,
           success: false,
-          error: err.message
+          error: e.message
         });
       }
     }
@@ -207,9 +185,8 @@ module.exports = async (req, res) => {
     return res.json({
       success: true,
       message: "sent",
-      raw,
       total: urls.length,
-      vars_used: vars,
+      vars,
       results
     });
 
