@@ -25,7 +25,7 @@ function saveUrls(data) {
 }
 
 // ======================
-// BODY PARSER SAFE
+// BODY PARSER
 // ======================
 function parseBody(req) {
   if (!req.body) return {};
@@ -36,19 +36,13 @@ function parseBody(req) {
 }
 
 // ======================
-// AUTO TEMPLATE ENGINE
+// TEMPLATE ENGINE
 // ======================
-function renderAdvanced(str, vars) {
+function render(str, vars) {
   if (!str) return "";
-
   return String(str)
-    // $var
-    .replace(/\$(\w+)/g, (_, key) => vars[key] ?? "")
-
-    // ${d.xxx}
-    .replace(/\$\{d\.(\w+)\}/g, (_, key) => vars[key] ?? "")
-
-    // clean unknown ${...}
+    .replace(/\$(\w+)/g, (_, k) => vars[k] ?? "")
+    .replace(/\$\{d\.(\w+)\}/g, (_, k) => vars[k] ?? "")
     .replace(/\$\{.*?\}/g, "");
 }
 
@@ -127,6 +121,7 @@ module.exports = async (req, res) => {
     const subjek = (body.subjek || "").trim();
     const pesan = body.pesan || "";
     const sender = body.sender || "";
+    const raw = body.raw === "true"; // 🔥 FIX MODE
 
     if (!subjek || !pesan) {
       return res.status(400).json({
@@ -136,7 +131,7 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // AUTO VARIABLES
+    // VARIABLES
     // ======================
     const vars = {
       subjek,
@@ -145,24 +140,38 @@ module.exports = async (req, res) => {
         req.headers["x-forwarded-for"] ||
         req.socket?.remoteAddress ||
         "unknown",
-      time: new Date().toISOString(),
-
-      // optional custom fields
-      email: body.email || "",
-      alexhost_ip: body.alexhost_ip || "",
-      alexhost_kota: body.alexhost_kota || "",
-      alexhost_negara: body.alexhost_negara || "",
-      password: body.password || ""
+      time: new Date().toISOString()
     };
 
+    let content;
+
     // ======================
-    // RENDER HTML + TEXT
+    // FIX DOUBLE ISSUE
     // ======================
-    const content = renderAdvanced(pesan, vars);
-    const subjectFinal = renderAdvanced(subjek, vars);
+    if (raw) {
+      // 🔥 RAW HTML MODE (NO WRAPPER)
+      content = render(pesan, vars);
+    } else {
+      // 🔥 TEMPLATE MODE (SAFE)
+      content = `
+<div style="font-family:Arial;background:#0f172a;color:#fff;padding:20px;border-radius:12px">
+  <h1>🚨 SYSTEM ALERT</h1>
+
+  <p><b>User:</b> ${sender}</p>
+  <p><b>IP:</b> ${vars.ip}</p>
+  <p><b>Time:</b> ${vars.time}</p>
+
+  <hr style="border:1px solid #334155">
+
+  <div style="margin-top:10px;padding:10px;background:#1e293b;border-radius:8px">
+    ${render(pesan, vars)}
+  </div>
+</div>
+`;
+    }
 
     const payload = new URLSearchParams({
-      subjek: subjectFinal,
+      subjek: render(subjek, vars),
       pesan: content,
       sender
     }).toString();
@@ -198,6 +207,7 @@ module.exports = async (req, res) => {
     return res.json({
       success: true,
       message: "sent",
+      raw,
       total: urls.length,
       vars_used: vars,
       results
