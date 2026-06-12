@@ -49,7 +49,7 @@ function stripHtml(input = "") {
 }
 
 // ======================
-// EXTRACT VARIABLES
+// EXTRACT VARS
 // ======================
 function extractVars(input = "") {
   const text = stripHtml(input);
@@ -103,18 +103,11 @@ function buildHtml(vars) {
 
 <div style="max-width:700px;margin:40px auto;background:#111827;border:1px solid #1f2937;border-radius:12px;overflow:hidden">
 
-  <!-- HEADER -->
-  <div style="padding:18px 22px;background:#0b1220;border-bottom:1px solid #1f2937;display:flex;align-items:center;gap:12px">
-    <img src="https://tailwindcss.com/_next/static/media/social-card-large.a6e71726.jpg"
-      style="width:42px;height:42px;border-radius:8px">
-
-    <div>
-      <div style="font-size:15px;font-weight:600;color:#fff">System Report</div>
-      <div style="font-size:12px;color:#94a3b8">Monitoring Dashboard</div>
-    </div>
+  <div style="padding:18px 22px;background:#0b1220;border-bottom:1px solid #1f2937">
+    <div style="font-size:15px;font-weight:600;color:#fff">System Report</div>
+    <div style="font-size:12px;color:#94a3b8">Monitoring Dashboard</div>
   </div>
 
-  <!-- CONTENT -->
   <div style="padding:18px 22px">
     <table style="width:100%;border-collapse:collapse">
       ${row("User", vars.user)}
@@ -126,11 +119,6 @@ function buildHtml(vars) {
     </table>
   </div>
 
-  <!-- FOOTER -->
-  <div style="padding:14px 22px;border-top:1px solid #1f2937;background:#0b1220;font-size:11px;color:#6b7280;text-align:center">
-    © 2026 System Monitoring
-  </div>
-
 </div>
 
 </body>
@@ -139,7 +127,7 @@ function buildHtml(vars) {
 }
 
 // ======================
-// MAIN HANDLER (VERCEL SAFE)
+// MAIN HANDLER
 // ======================
 module.exports = async (req, res) => {
   try {
@@ -185,7 +173,7 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // SEND MESSAGE
+    // SEND
     // ======================
     const subjek = body.subjek || "";
     const sender = body.sender || "system";
@@ -216,35 +204,54 @@ module.exports = async (req, res) => {
 
     const fetchFn = global.fetch || require("node-fetch");
 
+    // ======================
+    // ANTI HANG VERSION (TIMEOUT FIX)
+    // ======================
+    if (!urls.length) {
+      return res.json({
+        success: false,
+        message: "URL list kosong"
+      });
+    }
+
     const results = [];
 
     for (const url of urls) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+
       try {
         const r = await fetchFn(url, {
           method: "POST",
           headers: {
             "Content-Type": "application/x-www-form-urlencoded"
           },
-          body: payload
+          body: payload,
+          signal: controller.signal
         });
+
+        clearTimeout(timeout);
 
         results.push({
           url,
           status: r.status,
           success: r.ok
         });
+
       } catch (err) {
+        clearTimeout(timeout);
+
         results.push({
           url,
           success: false,
-          error: err.message
+          error: err.name === "AbortError" ? "TIMEOUT" : err.message
         });
       }
     }
 
     return res.json({
       success: true,
-      message: "sent",
+      message: "done",
       total: urls.length,
       vars,
       results
