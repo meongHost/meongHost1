@@ -27,13 +27,13 @@ const CONFIG = {
   // LIMIT
   // =========================
   rateLimit:
-    60,
+    100,
 
   maxLength:
     10000,
 
   maxRequestPerIP:
-    10,
+    100,
 
   requestWindow:
     60 * 1000,
