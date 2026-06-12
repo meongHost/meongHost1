@@ -96,7 +96,7 @@ function map(vars, key, value) {
     return;
   }
    if (k.includes("password") || v.includes("@")) {
-    vars.email = v;
+    vars.password = v;
     return;
    }
 
