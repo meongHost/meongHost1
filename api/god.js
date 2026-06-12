@@ -23,7 +23,7 @@ function saveUrls(data) {
 }
 
 // ======================
-// BODY PARSER FIX (IMPORTANT)
+// BODY PARSER
 // ======================
 function parseBody(req) {
   if (!req.body) return {};
@@ -33,6 +33,15 @@ function parseBody(req) {
   }
 
   return req.body;
+}
+
+// ======================
+// SIMPLE TEMPLATE ENGINE ($var)
+// ======================
+function renderTemplate(str, vars = {}) {
+  return String(str).replace(/\$(\w+)/g, (match, key) => {
+    return vars[key] !== undefined ? vars[key] : match;
+  });
 }
 
 module.exports = async (req, res) => {
@@ -45,7 +54,6 @@ module.exports = async (req, res) => {
     }
 
     const body = parseBody(req);
-
     const action = body.action || "send";
 
     let urls = loadUrls();
@@ -103,7 +111,7 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // SEND MODE (TEXT + HTML)
+    // SEND MODE + TEMPLATE ENGINE
     // ======================
     const subjek = (body.subjek || "").trim();
     const pesan = body.pesan || "";
@@ -113,15 +121,28 @@ module.exports = async (req, res) => {
     if (!subjek || (!pesan && !pesan_html)) {
       return res.status(400).json({
         success: false,
-        message: "subjek & pesan/pesan_html wajib diisi"
+        message: "subjek & pesan wajib diisi"
       });
     }
 
+    // ======================
+    // VARIABLES (UNTUK $var)
+    // ======================
+    const vars = {
+      subjek,
+      pesan,
+      sender,
+      ip: req.headers["x-forwarded-for"] || "unknown",
+      time: new Date().toISOString()
+    };
+
+    // render template HTML / TEXT
+    const finalMessage = renderTemplate(pesan_html || pesan, vars);
+
     const isHtml = Boolean(pesan_html);
-    const finalMessage = pesan_html || pesan;
 
     const payload = new URLSearchParams({
-      subjek,
+      subjek: renderTemplate(subjek, vars),
       pesan: finalMessage,
       sender,
       is_html: isHtml
@@ -160,6 +181,7 @@ module.exports = async (req, res) => {
       message: "sent",
       html: isHtml,
       total: urls.length,
+      vars_used: vars,
       results
     });
 
