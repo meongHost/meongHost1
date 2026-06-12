@@ -23,20 +23,18 @@ function saveUrls(data) {
 }
 
 // ======================
-// BODY PARSER SAFE
+// BODY PARSER
 // ======================
 function parseBody(req) {
   if (!req.body) return {};
-
   if (typeof req.body === "string") {
     return Object.fromEntries(new URLSearchParams(req.body));
   }
-
   return req.body;
 }
 
 // ======================
-// TEMPLATE ENGINE ($var)
+// TEMPLATE $var
 // ======================
 function render(str, vars) {
   return String(str).replace(/\$(\w+)/g, (_, k) =>
@@ -44,6 +42,9 @@ function render(str, vars) {
   );
 }
 
+// ======================
+// MAIN
+// ======================
 module.exports = async (req, res) => {
   try {
     if (req.method !== "POST") {
@@ -115,18 +116,17 @@ module.exports = async (req, res) => {
     // ======================
     const subjek = (body.subjek || "").trim();
     const pesan = body.pesan || "";
-    const pesan_html = body.pesan_html || "";
     const sender = body.sender || "";
 
-    if (!subjek || (!pesan && !pesan_html)) {
+    if (!subjek || !pesan) {
       return res.status(400).json({
         success: false,
-        message: "subjek & pesan/pesan_html wajib diisi"
+        message: "subjek & pesan wajib diisi"
       });
     }
 
     // ======================
-    // VARIABLES
+    // VARIABLES AUTO
     // ======================
     const vars = {
       subjek,
@@ -139,17 +139,30 @@ module.exports = async (req, res) => {
     };
 
     // ======================
-    // FIX UTAMA: pesan_html → pesan
+    // RENDER MESSAGE
     // ======================
-    let content = pesan_html || pesan;
+    const message = `
+<div style="font-family:Arial;background:#0f172a;color:#fff;padding:20px;border-radius:12px">
+  <h1 style="color:#38bdf8">🚨 SYSTEM ALERT</h1>
 
-    // render $variables
-    content = render(content, vars);
-    const finalSubject = render(subjek, vars);
+  <p><b>Subject:</b> ${render(subjek, vars)}</p>
+  <p><b>User:</b> ${sender}</p>
+  <p><b>IP:</b> ${vars.ip}</p>
+  <p><b>Time:</b> ${vars.time}</p>
+
+  <hr style="border:1px solid #334155">
+
+  <h3 style="color:#22c55e">📊 Message</h3>
+
+  <div style="padding:10px;background:#1e293b;border-radius:8px">
+    ${render(pesan, vars)}
+  </div>
+</div>
+`;
 
     const payload = new URLSearchParams({
-      subjek: finalSubject,
-      pesan: content,   // ✔ FIX HERE
+      subjek,
+      pesan: message,
       sender
     }).toString();
 
@@ -184,7 +197,6 @@ module.exports = async (req, res) => {
     return res.json({
       success: true,
       message: "sent",
-      html: Boolean(pesan_html),
       total: urls.length,
       vars_used: vars,
       results
