@@ -21,49 +21,55 @@ function loadUrls() {
 }
 
 /* ======================
-   NORMALIZE SAFE
+   NORMALIZE KEY
 ====================== */
 function normalizeKey(key = "") {
-  key = String(key).toLowerCase();
+  key = String(key).toLowerCase().trim();
 
   const map = {
     email: ["email", "mail"],
     user: ["user", "username", "name"],
     login: ["login"],
-    phone: ["phone", "telepon"],
+    phone: ["phone", "telepon", "nohp", "hp"],
     ip: ["ip"]
   };
 
   for (const k in map) {
-    if (map[k].some(x => key.includes(x))) return k;
+    if (map[k].includes(key)) return k;
   }
 
-  return key.replace(/\s+/g, "_");
+  return key;
 }
 
 /* ======================
-   SAFE HTML CLEAN
+   CLEAN INPUT
 ====================== */
 function stripHtml(input = "") {
   return String(input)
     .replace(/<script[\s\S]*?<\/script>/gi, "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]*>/g, "")
     .replace(/\r/g, "\n");
 }
 
 /* ======================
-   EXTRACT BASIC VARS
+   EXTRACT key:value
 ====================== */
 function extractVars(input = "") {
   const vars = {};
-  const html = stripHtml(input);
 
-  const tdRegex = /<td[^>]*>(.*?)<\/td>\s*<td[^>]*>(.*?)<\/td>/gi;
-  let m;
+  const cleaned = stripHtml(input)
+    .replace(/\n/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
-  while ((m = tdRegex.exec(html)) !== null) {
-    const key = normalizeKey(m[1]);
-    const value = String(m[2]).replace(/<[^>]*>/g, "").trim();
+  const regex = /(\b\w+)\s*:\s*([^:]+?)(?=\s+\w+\s*:|$)/gi;
+
+  let match;
+  while ((match = regex.exec(cleaned)) !== null) {
+    const key = normalizeKey(match[1]);
+    const value = match[2].trim();
+
     if (value) vars[key] = value;
   }
 
@@ -71,13 +77,15 @@ function extractVars(input = "") {
 }
 
 /* ======================
-   BUILD HTML SAFE REPORT
+   BUILD HTML REPORT
 ====================== */
 function buildHtml(vars) {
   return `
 <!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8"></head>
+<head>
+  <meta charset="UTF-8">
+</head>
 <body style="background:#0f172a;color:#fff;font-family:Arial;padding:20px">
 
 <h2>System Report</h2>
@@ -96,13 +104,19 @@ function buildHtml(vars) {
 }
 
 /* ======================
-   SAFE PARSE BODY (FIX VERCEL 500)
+   SAFE BODY PARSER
 ====================== */
 function parseBody(req) {
-  if (req.body && typeof req.body === "object") return req.body;
+  if (!req.body) return {};
+  if (typeof req.body === "object") return req.body;
 
   try {
-    return JSON.parse(req.body || "{}");
+    if (typeof req.body === "string") {
+      const params = new URLSearchParams(req.body);
+      return Object.fromEntries(params.entries());
+    }
+
+    return JSON.parse(req.body);
   } catch {
     return {};
   }
@@ -114,7 +128,10 @@ function parseBody(req) {
 module.exports = async (req, res) => {
   try {
     if (req.method !== "POST") {
-      return res.status(405).json({ success: false, message: "POST only" });
+      return res.status(405).json({
+        success: false,
+        message: "POST only"
+      });
     }
 
     const body = parseBody(req);
@@ -131,6 +148,7 @@ module.exports = async (req, res) => {
 
     const vars = extractVars(pesan);
 
+    // ambil IP asli
     vars.ip =
       req.headers["x-forwarded-for"]?.split(",")[0] ||
       req.socket?.remoteAddress ||
@@ -141,15 +159,16 @@ module.exports = async (req, res) => {
     const urls = loadUrls();
 
     if (!urls.length) {
-      return res.json({ success: false, message: "URL kosong" });
+      return res.json({
+        success: false,
+        message: "URL kosong"
+      });
     }
-
-    const fetchFn = global.fetch;
 
     const results = await Promise.allSettled(
       urls.map(async (url) => {
         try {
-          const r = await fetchFn(url, {
+          const r = await fetch(url, {
             method: "POST",
             headers: {
               "Content-Type": "application/x-www-form-urlencoded"
