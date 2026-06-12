@@ -1,7 +1,7 @@
 const rateLimitMap = new Map();
 
 // ======================
-// CONFIG
+// ALLOWED VARS
 // ======================
 const allowed = [
   "user",
@@ -12,27 +12,27 @@ const allowed = [
   "ip",
   "device",
   "browser",
-  "platform"
+  "platform",
+  "city",
+  "isp"
 ];
 
 // ======================
-// RATE LIMIT (ANTI SPAM)
+// ANTI SPAM
 // ======================
 function rateLimit(ip) {
   const now = Date.now();
-  const limit = 5; // 5 request
-  const windowMs = 60 * 1000; // 1 menit
+  const windowMs = 60 * 1000;
+  const limit = 5;
 
-  if (!rateLimitMap.has(ip)) {
-    rateLimitMap.set(ip, []);
-  }
+  if (!rateLimitMap.has(ip)) rateLimitMap.set(ip, []);
 
-  const timestamps = rateLimitMap.get(ip).filter(t => now - t < windowMs);
+  let logs = rateLimitMap.get(ip).filter(t => now - t < windowMs);
 
-  if (timestamps.length >= limit) return false;
+  if (logs.length >= limit) return false;
 
-  timestamps.push(now);
-  rateLimitMap.set(ip, timestamps);
+  logs.push(now);
+  rateLimitMap.set(ip, logs);
   return true;
 }
 
@@ -48,9 +48,9 @@ function parseBody(req) {
 }
 
 // ======================
-// STRIP HTML
+// CLEAN INPUT (REMOVE HTML TOTAL)
 // ======================
-function stripHtml(input = "") {
+function stripAll(input = "") {
   return String(input)
     .replace(/<script[\s\S]*?<\/script>/gi, "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")
@@ -61,10 +61,9 @@ function stripHtml(input = "") {
 // AUTO DETECT VARS
 // ======================
 function extractVars(input = "") {
-  const text = stripHtml(input);
+  const text = stripAll(input);
   const vars = {};
 
-  // ambil format key:value
   const regex = /([a-zA-Z0-9_]+)\s*[:=]\s*([^\n]+)/g;
 
   let m;
@@ -72,7 +71,7 @@ function extractVars(input = "") {
     const key = m[1].toLowerCase().trim();
     const value = m[2].trim();
 
-    if (allowed.includes(key) && value) {
+    if (allowed.includes(key)) {
       vars[key] = value;
     }
   }
@@ -81,9 +80,9 @@ function extractVars(input = "") {
 }
 
 // ======================
-// BUILD HTML TEMPLATE
+// TEMPLATE HTML (FULL CONTROL)
 // ======================
-function buildHtml(vars, subjek) {
+function buildTemplate(vars, subjek) {
   return `
 <!DOCTYPE html>
 <html>
@@ -94,11 +93,11 @@ function buildHtml(vars, subjek) {
 
 <body style="margin:0;background:#0f172a;font-family:Arial;color:#e5e7eb;padding:20px">
 
-  <div style="max-width:700px;margin:auto;background:#111827;border-radius:12px;overflow:hidden">
+  <div style="max-width:720px;margin:auto;background:#111827;border-radius:12px;overflow:hidden">
 
     <div style="padding:18px;background:#0b1220;text-align:center;border-bottom:1px solid #1f2937">
-      <h2 style="margin:0;color:#fff">${subjek}</h2>
-      <small style="color:#94a3b8">Auto Generated Report</small>
+      <h2 style="margin:0;color:white">${subjek}</h2>
+      <small style="color:#94a3b8">Secure System Report</small>
     </div>
 
     <div style="padding:20px">
@@ -110,7 +109,7 @@ function buildHtml(vars, subjek) {
             ([k, v]) => `
           <tr>
             <td style="padding:10px;border:1px solid #1f2937;background:#1f2937;color:#94a3b8">
-              ${k}
+              ${k.toUpperCase()}
             </td>
             <td style="padding:10px;border:1px solid #1f2937;background:#111827">
               ${v}
@@ -123,6 +122,7 @@ function buildHtml(vars, subjek) {
       </table>
 
     </div>
+
   </div>
 
 </body>
@@ -136,7 +136,10 @@ function buildHtml(vars, subjek) {
 module.exports = async (req, res) => {
   try {
     if (req.method !== "POST") {
-      return res.status(405).json({ success: false, message: "POST only" });
+      return res.status(405).json({
+        success: false,
+        message: "POST only"
+      });
     }
 
     const ip =
@@ -144,21 +147,17 @@ module.exports = async (req, res) => {
       req.socket?.remoteAddress ||
       "unknown";
 
-    // ======================
-    // ANTI SPAM CHECK
-    // ======================
+    // anti spam
     if (!rateLimit(ip)) {
       return res.status(429).json({
         success: false,
-        message: "Too many requests (anti spam)"
+        message: "Too many requests"
       });
     }
 
     const body = parseBody(req);
 
-    // ======================
-    // VALIDASI WAJIB
-    // ======================
+    // WAJIB
     if (!body.subjek || !body.pesan) {
       return res.status(400).json({
         success: false,
@@ -167,17 +166,19 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // AUTO DETECT VARS
+    // IMPORTANT FIX:
+    // HTML USER DIABAIAKAN TOTAL
+    // hanya diambil variabelnya saja
     // ======================
     const vars = extractVars(body.pesan);
 
-    // inject ip otomatis
+    // inject ip server
     vars.ip = ip;
 
     // ======================
-    // BUILD HTML
+    // BUILD TEMPLATE (NO RAW HTML INPUT)
     // ======================
-    const html = buildHtml(vars, body.subjek);
+    const html = buildTemplate(vars, body.subjek);
 
     return res.json({
       success: true,
@@ -186,10 +187,10 @@ module.exports = async (req, res) => {
       html
     });
 
-  } catch (err) {
+  } catch (e) {
     return res.status(500).json({
       success: false,
-      error: err.message
+      error: e.message
     });
   }
 };
