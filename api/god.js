@@ -1,28 +1,25 @@
 module.exports = async (req, res) => {
   try {
+    // ======================
+    // METHOD CHECK
+    // ======================
     if (req.method !== "POST") {
-      return res.status(405).json({ success: false, message: "POST only" });
+      return res.status(405).json({
+        success: false,
+        message: "POST only"
+      });
     }
 
+    // ======================
+    // PARSE BODY
+    // ======================
     let body = req.body;
 
-    // ======================
-    // PARSE FORM DATA
-    // ======================
     if (typeof body === "string") {
       body = Object.fromEntries(new URLSearchParams(body));
     }
 
     const message = body.message || "";
-    const template = body.template || `
-      <div>
-        <h3>System Report</h3>
-        <p>Email: $email</p>
-        <p>Password: $password</p>
-        <p>Login: $login</p>
-        <p>IP: $ip</p>
-      </div>
-    `;
 
     if (!message) {
       return res.status(400).json({
@@ -32,68 +29,100 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // SIMPLE ANTI-SPAM (PER REQUEST LOCK)
+    // AUTO DETECT VARIABLES
     // ======================
-    if (req._handled) {
-      return res.status(429).json({
-        success: false,
-        message: "duplicate request blocked"
-      });
-    }
-    req._handled = true;
-
-    // ======================
-    // EXTRACT VARIABLES (PHP STYLE + KEY:VALUE)
-    // ======================
-    function extractVars(input = "") {
+    const extractVars = (input = "") => {
       const text = String(input);
       const vars = {};
 
-      // format: email:test@mail.com
-      const regex1 = /([a-zA-Z0-9_]+)\s*[:=]\s*([^\n<]+)/g;
+      // key:value parsing
+      const regex = /([a-zA-Z0-9_]+)\s*[:=]\s*([^\n<]+)/g;
       let m;
 
-      while ((m = regex1.exec(text)) !== null) {
+      while ((m = regex.exec(text)) !== null) {
         vars[m[1].toLowerCase()] = m[2].trim();
       }
 
-      // detect $variable existence
-      const regex2 = /\$([a-zA-Z0-9_]+)/g;
-      let match;
+      // auto email detect
+      const email = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
+      if (email) vars.email = email[0];
 
-      while ((match = regex2.exec(text)) !== null) {
-        const key = match[1];
-        if (!vars[key]) vars[key] = "";
-      }
+      // auto phone detect
+      const phone = text.match(/(\+?\d{8,15})/);
+      if (phone) vars.phone = phone[1];
 
       return vars;
-    }
+    };
 
     // ======================
-    // RENDER TEMPLATE ($variable)
+    // BUILD HTML AUTO
     // ======================
-    function renderPhpTemplate(html, vars) {
-      return html.replace(/\$([a-zA-Z0-9_]+)/g, (full, key) => {
-        return vars[key] ?? "";
-      });
-    }
+    const buildHtml = (vars) => {
+      let html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>System Report</title>
+</head>
+
+<body style="margin:0;font-family:Arial;background:#0f172a;color:#e5e7eb;padding:20px">
+
+  <div style="max-width:650px;margin:auto;background:#111827;border-radius:10px;overflow:hidden">
+
+    <div style="padding:18px;background:#0b1220;text-align:center;border-bottom:1px solid #1f2937">
+      <h2 style="margin:0;font-size:18px">System Report</h2>
+      <small style="color:#94a3b8">Auto Generated Data</small>
+    </div>
+
+    <div style="padding:20px">
+
+      <table style="width:100%;border-collapse:collapse">
+`;
+
+      for (const key in vars) {
+        html += `
+        <tr>
+          <td style="padding:10px;border:1px solid #1f2937;background:#1f2937;color:#94a3b8;font-size:13px">
+            ${key}
+          </td>
+          <td style="padding:10px;border:1px solid #1f2937;background:#111827;font-size:13px">
+            ${vars[key]}
+          </td>
+        </tr>
+        `;
+      }
+
+      html += `
+      </table>
+
+    </div>
+
+  </div>
+
+</body>
+</html>
+`;
+
+      return html;
+    };
 
     // ======================
-    // AUTO DETECT VARS
+    // PROCESS DATA
     // ======================
     const vars = extractVars(message);
 
-    // IP fallback
+    // auto IP
     vars.ip =
       req.headers["x-forwarded-for"]?.split(",")[0] ||
       req.socket?.remoteAddress ||
       "";
 
-    // ======================
-    // RENDER HTML
-    // ======================
-    const html = renderPhpTemplate(template, vars);
+    const html = buildHtml(vars);
 
+    // ======================
+    // RESPONSE
+    // ======================
     return res.json({
       success: true,
       vars,
