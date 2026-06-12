@@ -34,7 +34,7 @@ function parseBody(req) {
 }
 
 // ======================
-// CLEAN HTML → TEXT
+// STRIP HTML (SAFE)
 // ======================
 function stripHtml(input = "") {
   return String(input)
@@ -44,14 +44,12 @@ function stripHtml(input = "") {
 }
 
 // ======================
-// EXTRACT VARIABLES FROM ANY INPUT
+// EXTRACT VARIABLES (NO LIMIT HTML)
 // ======================
 function extractVars(input = "") {
   const text = stripHtml(input);
 
   const vars = {};
-
-  // key: value OR key = value
   const regex = /([a-zA-Z0-9_]+)\s*[:=]\s*([^\n]+)/g;
 
   let m;
@@ -68,7 +66,7 @@ function extractVars(input = "") {
 }
 
 // ======================
-// BACKEND TEMPLATE HTML
+// BACKEND TEMPLATE (CLEAN OUTPUT)
 // ======================
 function buildHtml(vars) {
   return `
@@ -96,7 +94,7 @@ function buildHtml(vars) {
 }
 
 // ======================
-// MAIN HANDLER
+// MAIN API
 // ======================
 module.exports = async (req, res) => {
   try {
@@ -145,7 +143,7 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // INPUT DATA
+    // INPUT DATA (HTML ALLOWED)
     // ======================
     const subjek = body.subjek || "";
     const sender = body.sender || "system";
@@ -159,7 +157,7 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // EXTRACT VARS (HTML ALLOWED)
+    // EXTRACT VARIABLES FROM HTML/TEXT
     // ======================
     const vars = extractVars(messageRaw);
 
