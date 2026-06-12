@@ -1,63 +1,65 @@
 const fs = require("fs");
-const path = require("path");
 
 // ======================
-// PARSE INPUT → VARIABLES
+// 1. EXTRACT VARIABLES
 // ======================
 function extractVars(input = "") {
   const text = String(input);
   const vars = {};
 
-  // 1. format key:value (username:John)
-  const regex = /([a-zA-Z0-9_]+)\s*[:=]\s*([^\n<]+)/g;
+  // format: email:test@mail.com
+  const regex1 = /([a-zA-Z0-9_]+)\s*[:=]\s*([^\n<]+)/g;
 
   let m;
-  while ((m = regex.exec(text)) !== null) {
+  while ((m = regex1.exec(text)) !== null) {
     vars[m[1].toLowerCase()] = m[2].trim();
   }
 
-  // 2. auto email detect
-  const email = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
-  if (email) vars.email = email[0];
+  // detect PHP style $variable (tanpa value)
+  const regex2 = /\$([a-zA-Z0-9_]+)/g;
 
-  // 3. auto phone detect
-  const phone = text.match(/(\+?\d{8,15})/);
-  if (phone) vars.phone = phone[1];
+  let match;
+  while ((match = regex2.exec(text)) !== null) {
+    const key = match[1];
+    if (!vars[key]) vars[key] = "";
+  }
 
   return vars;
 }
 
 // ======================
-// TEMPLATE RENDER ENGINE
+// 2. RENDER PHP STYLE TEMPLATE
 // ======================
-function renderTemplate(html, vars) {
-  return html.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+function renderPhpTemplate(html, vars) {
+  return html.replace(/\$([a-zA-Z0-9_]+)/g, (full, key) => {
     return vars[key] ?? "";
   });
 }
 
 // ======================
-// CLEAN HTML STRIP (optional)
+// 3. STRIP OPTIONAL HTML TAG (SAFE INPUT)
 // ======================
 function stripHtml(input = "") {
   return String(input)
     .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]*>/g, "\n");
+    .replace(/<style[\s\S]*?<\/style>/gi, "");
 }
 
 // ======================
-// MAIN HANDLER (API)
+// 4. MAIN API HANDLER
 // ======================
 module.exports = async (req, res) => {
   try {
     if (req.method !== "POST") {
-      return res.status(405).json({ success: false, message: "POST only" });
+      return res.status(405).json({
+        success: false,
+        message: "POST only"
+      });
     }
 
     let body = req.body;
 
-    // parse form-data / x-www-form-urlencoded
+    // support form-urlencoded
     if (typeof body === "string") {
       body = Object.fromEntries(new URLSearchParams(body));
     }
@@ -66,9 +68,11 @@ module.exports = async (req, res) => {
     const template = body.template || `
       <html>
         <body>
-          <h2>Welcome {{username}}</h2>
-          <p>Email: {{email}}</p>
-          <p>Phone: {{phone}}</p>
+          <h2>INFO LOGIN</h2>
+          <p>Email: $email</p>
+          <p>Password: $password</p>
+          <p>Login: $login</p>
+          <p>IP: $ip</p>
         </body>
       </html>
     `;
@@ -76,19 +80,26 @@ module.exports = async (req, res) => {
     if (!message) {
       return res.status(400).json({
         success: false,
-        message: "message required"
+        message: "message wajib diisi"
       });
     }
 
     // ======================
-    // EXTRACT VARIABLES
+    // AUTO DETECT VARS
     // ======================
-    const vars = extractVars(message);
+    const vars = extractVars(stripHtml(message));
+
+    // auto IP fallback
+    vars.ip =
+      vars.ip ||
+      req.headers["x-forwarded-for"]?.split(",")[0] ||
+      req.socket?.remoteAddress ||
+      "";
 
     // ======================
-    // RENDER HTML
+    // RENDER TEMPLATE
     // ======================
-    const html = renderTemplate(template, vars);
+    const html = renderPhpTemplate(template, vars);
 
     return res.json({
       success: true,
