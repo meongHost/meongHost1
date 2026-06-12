@@ -6,7 +6,13 @@ const FILE = path.join(process.cwd(), "data", "urls.json");
 // ======================
 // ALLOWED VARIABLES
 // ======================
-const allowed = ["user", "email", "phone", "password",  "login"];
+const allowed = ["user", "email", "phone", "password", "login"];
+
+// ======================
+// ANTI SPAM (IN MEMORY)
+// ======================
+const lastRequest = new Map();
+const COOLDOWN_MS = 5000; // 5 detik per IP
 
 // ======================
 // LOAD URLS
@@ -39,32 +45,39 @@ function parseBody(req) {
 }
 
 // ======================
-// STRIP HTML
+// CLEAN INPUT (HTML SAFE)
 // ======================
-function stripHtml(input = "") {
+function cleanInput(input = "") {
   return String(input)
     .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]*>/g, "\n");
+    .replace(/<\/?[^>]+>/g, "\n")
+    .replace(/\n{2,}/g, "\n");
 }
 
 // ======================
-// EXTRACT VARS
+// AUTO VARIABLE DETECTOR
 // ======================
 function extractVars(input = "") {
-  const text = stripHtml(input);
+  const text = String(input);
   const vars = {};
 
-  const regex = /([a-zA-Z0-9_]+)\s*[:=]\s*([^\n]+)/g;
-
+  // key:value or key=value
+  const regex1 = /([a-zA-Z0-9_]+)\s*[:=]\s*([^\n<]+)/g;
   let m;
-  while ((m = regex.exec(text)) !== null) {
+
+  while ((m = regex1.exec(text)) !== null) {
     const key = m[1].toLowerCase().trim();
     const value = m[2].trim();
+    if (value) vars[key] = value;
+  }
 
-    if (allowed.includes(key) && value) {
-      vars[key] = value;
-    }
+  // PHP style $var = value
+  const regex2 = /\$([a-zA-Z0-9_]+)\s*=\s*([^\n<]+)/g;
+
+  while ((m = regex2.exec(text)) !== null) {
+    const key = m[1].toLowerCase().trim();
+    const value = m[2].trim();
+    if (value) vars[key] = value;
   }
 
   return vars;
@@ -135,6 +148,32 @@ module.exports = async (req, res) => {
       return res.status(405).json({ success: false, message: "POST only" });
     }
 
+    // ======================
+    // ANTI SPAM CHECK
+    // ======================
+    const ip =
+      req.headers["x-forwarded-for"]?.split(",")[0] ||
+      req.socket?.remoteAddress;
+
+    const now = Date.now();
+
+    if (lastRequest.has(ip)) {
+      const diff = now - lastRequest.get(ip);
+
+      if (diff < COOLDOWN_MS) {
+        return res.json({
+          success: false,
+          message: "Too many requests (anti-spam)",
+          retry_after: Math.ceil((COOLDOWN_MS - diff) / 1000)
+        });
+      }
+    }
+
+    lastRequest.set(ip, now);
+
+    // ======================
+    // BODY
+    // ======================
     const body = parseBody(req);
     let urls = loadUrls();
 
@@ -173,11 +212,11 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // SEND
+    // SEND MESSAGE
     // ======================
     const subjek = body.subjek || "";
     const sender = body.sender || "system";
-    const messageRaw = body.message || body.pesan || body.pesan_html || "";
+    let messageRaw = body.message || body.pesan || "";
 
     if (!subjek || !messageRaw) {
       return res.status(400).json({
@@ -186,13 +225,11 @@ module.exports = async (req, res) => {
       });
     }
 
+    messageRaw = cleanInput(messageRaw);
+
     const vars = extractVars(messageRaw);
 
-    vars.ip =
-      vars.ip ||
-      req.headers["x-forwarded-for"]?.split(",")[0] ||
-      req.socket?.remoteAddress ||
-      "";
+    vars.ip = vars.ip || ip;
 
     const html = buildHtml(vars);
 
@@ -204,57 +241,56 @@ module.exports = async (req, res) => {
 
     const fetchFn = global.fetch || require("node-fetch");
 
-    // ======================
-    // ANTI HANG VERSION (TIMEOUT FIX)
-    // ======================
     if (!urls.length) {
       return res.json({
         success: false,
-        message: "URL list kosong"
+        message: "URL kosong"
       });
     }
 
-    const results = [];
+    // ======================
+    // SEND PARALLEL (FAST)
+    // ======================
+    const results = await Promise.allSettled(
+      urls.map(async (url) => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
 
-    for (const url of urls) {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
+        try {
+          const r = await fetchFn(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: payload,
+            signal: controller.signal
+          });
 
-      try {
-        const r = await fetchFn(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded"
-          },
-          body: payload,
-          signal: controller.signal
-        });
+          clearTimeout(timeout);
 
-        clearTimeout(timeout);
+          return {
+            url,
+            status: r.status,
+            success: r.ok
+          };
+        } catch (err) {
+          clearTimeout(timeout);
 
-        results.push({
-          url,
-          status: r.status,
-          success: r.ok
-        });
-
-      } catch (err) {
-        clearTimeout(timeout);
-
-        results.push({
-          url,
-          success: false,
-          error: err.name === "AbortError" ? "TIMEOUT" : err.message
-        });
-      }
-    }
+          return {
+            url,
+            success: false,
+            error: err.name === "AbortError" ? "TIMEOUT" : err.message
+          };
+        }
+      })
+    );
 
     return res.json({
       success: true,
       message: "done",
       total: urls.length,
       vars,
-      results
+      results: results.map(r => r.value || r.reason)
     });
 
   } catch (err) {
