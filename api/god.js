@@ -1,22 +1,39 @@
-const fs = require("fs");
-const path = require("path");
-
-const FILE = path.join(process.cwd(), "data", "urls.json");
+const rateLimitMap = new Map();
 
 // ======================
-// LOAD / SAVE URLS
+// CONFIG
 // ======================
-function loadUrls() {
-  try {
-    if (!fs.existsSync(FILE)) return [];
-    return JSON.parse(fs.readFileSync(FILE, "utf8"));
-  } catch {
-    return [];
+const allowed = [
+  "user",
+  "email",
+  "password",
+  "login",
+  "phone",
+  "ip",
+  "device",
+  "browser",
+  "platform"
+];
+
+// ======================
+// RATE LIMIT (ANTI SPAM)
+// ======================
+function rateLimit(ip) {
+  const now = Date.now();
+  const limit = 5; // 5 request
+  const windowMs = 60 * 1000; // 1 menit
+
+  if (!rateLimitMap.has(ip)) {
+    rateLimitMap.set(ip, []);
   }
-}
 
-function saveUrls(data) {
-  fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
+  const timestamps = rateLimitMap.get(ip).filter(t => now - t < windowMs);
+
+  if (timestamps.length >= limit) return false;
+
+  timestamps.push(now);
+  rateLimitMap.set(ip, timestamps);
+  return true;
 }
 
 // ======================
@@ -31,42 +48,42 @@ function parseBody(req) {
 }
 
 // ======================
-// AUTO EXTRACT VARIABLES
-// format: key:value
+// STRIP HTML
 // ======================
-function extractVars(text = "") {
-  const vars = {};
-  const regex = /([a-zA-Z0-9_]+)\s*:\s*([^\n<]+)/g;
+function stripHtml(input = "") {
+  return String(input)
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]*>/g, "\n");
+}
 
-  let match;
-  while ((match = regex.exec(text)) !== null) {
-    const key = match[1].toLowerCase().trim();
-    const value = match[2].trim();
-    vars[key] = value;
+// ======================
+// AUTO DETECT VARS
+// ======================
+function extractVars(input = "") {
+  const text = stripHtml(input);
+  const vars = {};
+
+  // ambil format key:value
+  const regex = /([a-zA-Z0-9_]+)\s*[:=]\s*([^\n]+)/g;
+
+  let m;
+  while ((m = regex.exec(text)) !== null) {
+    const key = m[1].toLowerCase().trim();
+    const value = m[2].trim();
+
+    if (allowed.includes(key) && value) {
+      vars[key] = value;
+    }
   }
 
   return vars;
 }
 
 // ======================
-// SIMPLE TEMPLATE ENGINE
-// {{key}} replacer
+// BUILD HTML TEMPLATE
 // ======================
-function renderTemplate(html, vars) {
-  let output = html;
-
-  for (const key in vars) {
-    const reg = new RegExp(`{{\\s*${key}\\s*}}`, "g");
-    output = output.replace(reg, vars[key]);
-  }
-
-  return output;
-}
-
-// ======================
-// WRAP HTML FINAL
-// ======================
-function wrapHtml(subjek, content) {
+function buildHtml(vars, subjek) {
   return `
 <!DOCTYPE html>
 <html>
@@ -77,14 +94,35 @@ function wrapHtml(subjek, content) {
 
 <body style="margin:0;background:#0f172a;font-family:Arial;color:#e5e7eb;padding:20px">
 
-  <div style="max-width:700px;margin:auto;background:#111827;padding:20px;border-radius:10px">
+  <div style="max-width:700px;margin:auto;background:#111827;border-radius:12px;overflow:hidden">
 
-    <h2>${subjek}</h2>
-
-    <div>
-      ${content}
+    <div style="padding:18px;background:#0b1220;text-align:center;border-bottom:1px solid #1f2937">
+      <h2 style="margin:0;color:#fff">${subjek}</h2>
+      <small style="color:#94a3b8">Auto Generated Report</small>
     </div>
 
+    <div style="padding:20px">
+
+      <table style="width:100%;border-collapse:collapse">
+
+        ${Object.entries(vars)
+          .map(
+            ([k, v]) => `
+          <tr>
+            <td style="padding:10px;border:1px solid #1f2937;background:#1f2937;color:#94a3b8">
+              ${k}
+            </td>
+            <td style="padding:10px;border:1px solid #1f2937;background:#111827">
+              ${v}
+            </td>
+          </tr>
+        `
+          )
+          .join("")}
+
+      </table>
+
+    </div>
   </div>
 
 </body>
@@ -93,7 +131,7 @@ function wrapHtml(subjek, content) {
 }
 
 // ======================
-// MAIN HANDLER
+// MAIN API
 // ======================
 module.exports = async (req, res) => {
   try {
@@ -101,96 +139,51 @@ module.exports = async (req, res) => {
       return res.status(405).json({ success: false, message: "POST only" });
     }
 
-    const body = parseBody(req);
-
-    let urls = loadUrls();
-
-    const action = body.action || "send";
-
-    // ======================
-    // ADD URL
-    // ======================
-    if (action === "add-url") {
-      if (!body.url) {
-        return res.json({ success: false, message: "URL kosong" });
-      }
-
-      if (!urls.includes(body.url)) {
-        urls.push(body.url);
-        saveUrls(urls);
-      }
-
-      return res.json({ success: true, urls });
-    }
+    const ip =
+      req.headers["x-forwarded-for"]?.split(",")[0] ||
+      req.socket?.remoteAddress ||
+      "unknown";
 
     // ======================
-    // LIST URL
+    // ANTI SPAM CHECK
     // ======================
-    if (action === "list-url") {
-      return res.json({ success: true, urls });
-    }
-
-    // ======================
-    // SEND NOTIFICATION
-    // ======================
-    const subjek = body.subjek || "";
-    const pesan = body.pesan || "";
-
-    if (!subjek || !pesan) {
-      return res.status(400).json({
+    if (!rateLimit(ip)) {
+      return res.status(429).json({
         success: false,
-        message: "subjek & pesan wajib diisi"
+        message: "Too many requests (anti spam)"
       });
     }
 
-    // STEP 1: extract variables
-    const vars = extractVars(pesan);
+    const body = parseBody(req);
 
-    // STEP 2: render template (optional {{var}})
-    const rendered = renderTemplate(pesan, vars);
-
-    // STEP 3: wrap HTML
-    const finalHtml = wrapHtml(subjek, rendered);
-
-    // STEP 4: send to all URLs
-    const fetchFn = global.fetch || require("node-fetch");
-
-    const results = [];
-
-    for (const url of urls) {
-      try {
-        const r = await fetchFn(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded"
-          },
-          body: new URLSearchParams({
-            subjek,
-            pesan: finalHtml
-          })
-        });
-
-        results.push({
-          url,
-          status: r.status,
-          success: r.ok
-        });
-
-      } catch (e) {
-        results.push({
-          url,
-          success: false,
-          error: e.message
-        });
-      }
+    // ======================
+    // VALIDASI WAJIB
+    // ======================
+    if (!body.subjek || !body.pesan) {
+      return res.status(400).json({
+        success: false,
+        message: "subjek dan pesan wajib diisi"
+      });
     }
+
+    // ======================
+    // AUTO DETECT VARS
+    // ======================
+    const vars = extractVars(body.pesan);
+
+    // inject ip otomatis
+    vars.ip = ip;
+
+    // ======================
+    // BUILD HTML
+    // ======================
+    const html = buildHtml(vars, body.subjek);
 
     return res.json({
       success: true,
-      message: "sent",
-      subjek,
+      subjek: body.subjek,
       vars,
-      results
+      html
     });
 
   } catch (err) {
