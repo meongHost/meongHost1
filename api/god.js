@@ -4,7 +4,7 @@ const path = require("path");
 const FILE = path.join(process.cwd(), "data", "urls.json");
 
 /* ======================
-   LOAD URL SAFE
+   LOAD URL
 ====================== */
 function loadUrls() {
   try {
@@ -21,45 +21,28 @@ function loadUrls() {
 }
 
 /* ======================
-   NORMALIZE KEY
+   PARSE BODY SAFE
 ====================== */
-function normalizeKey(key = "") {
-  key = String(key).toLowerCase().trim();
+function parseBody(req) {
+  if (!req.body) return {};
+  if (typeof req.body === "object") return req.body;
 
-  const map = {
-    email: ["email", "mail"],
-    user: ["user", "username", "name"],
-    login: ["login"],
-    phone: ["phone", "telepon", "nohp", "hp"],
-    ip: ["ip"]
-  };
-
-  for (const k in map) {
-    if (map[k].includes(key)) return k;
+  try {
+    const params = new URLSearchParams(req.body);
+    return Object.fromEntries(params.entries());
+  } catch {
+    return {};
   }
-
-  return key;
 }
 
 /* ======================
-   CLEAN INPUT
-====================== */
-function stripHtml(input = "") {
-  return String(input)
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]*>/g, "")
-    .replace(/\r/g, "\n");
-}
-
-/* ======================
-   EXTRACT key:value
+   EXTRACT KEY VALUE (SUPPORT PHP STYLE)
 ====================== */
 function extractVars(input = "") {
   const vars = {};
 
-  const cleaned = stripHtml(input)
-    .replace(/\n/g, " ")
+  const cleaned = String(input)
+    .replace(/<[^>]*>/g, "")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -67,13 +50,43 @@ function extractVars(input = "") {
 
   let match;
   while ((match = regex.exec(cleaned)) !== null) {
-    const key = normalizeKey(match[1]);
+    const key = match[1].toLowerCase().trim();
     const value = match[2].trim();
 
-    if (value) vars[key] = value;
+    if (!value) continue;
+
+    switch (key) {
+      case "email":
+        vars.email = value;
+        break;
+      case "login":
+        vars.login = value;
+        break;
+      case "user":
+        vars.user = value;
+        break;
+      case "phone":
+        vars.phone = value;
+        break;
+      case "password":
+        // jangan simpan password asli
+        vars.password = "***";
+        break;
+    }
   }
 
   return vars;
+}
+
+/* ======================
+   GET REAL IP
+====================== */
+function getIP(req) {
+  return (
+    req.headers["x-forwarded-for"]?.split(",")[0] ||
+    req.socket?.remoteAddress ||
+    "unknown"
+  );
 }
 
 /* ======================
@@ -84,42 +97,26 @@ function buildHtml(vars) {
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
+<meta charset="UTF-8">
 </head>
-<body style="background:#0f172a;color:#fff;font-family:Arial;padding:20px">
+<body style="font-family:Arial;background:#ffffff;padding:20px">
 
 <h2>System Report</h2>
 
 <table border="1" cellpadding="8" style="border-collapse:collapse;width:100%">
-<tr><td>User</td><td>${vars.user || "-"}</td></tr>
+
 <tr><td>Email</td><td>${vars.email || "-"}</td></tr>
+<tr><td>User</td><td>${vars.user || "-"}</td></tr>
 <tr><td>Login</td><td>${vars.login || "-"}</td></tr>
 <tr><td>Phone</td><td>${vars.phone || "-"}</td></tr>
+<tr><td>Password</td><td>${vars.password || "-"}</td></tr>
 <tr><td>IP</td><td>${vars.ip || "-"}</td></tr>
+
 </table>
 
 </body>
 </html>
 `;
-}
-
-/* ======================
-   SAFE BODY PARSER
-====================== */
-function parseBody(req) {
-  if (!req.body) return {};
-  if (typeof req.body === "object") return req.body;
-
-  try {
-    if (typeof req.body === "string") {
-      const params = new URLSearchParams(req.body);
-      return Object.fromEntries(params.entries());
-    }
-
-    return JSON.parse(req.body);
-  } catch {
-    return {};
-  }
 }
 
 /* ======================
@@ -146,13 +143,9 @@ module.exports = async (req, res) => {
       });
     }
 
+    // extract data
     const vars = extractVars(pesan);
-
-    // ambil IP asli
-    vars.ip =
-      req.headers["x-forwarded-for"]?.split(",")[0] ||
-      req.socket?.remoteAddress ||
-      "unknown";
+    vars.ip = getIP(req);
 
     const html = buildHtml(vars);
 
@@ -202,7 +195,7 @@ module.exports = async (req, res) => {
     });
 
   } catch (err) {
-    console.log("FATAL ERROR:", err);
+    console.log("ERROR:", err);
 
     return res.status(500).json({
       success: false,
