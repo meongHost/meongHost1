@@ -21,7 +21,7 @@ function loadUrls() {
 }
 
 /* ======================
-   SAFE BODY PARSER
+   BODY PARSER
 ====================== */
 function parseBody(req) {
   if (!req.body) return {};
@@ -35,45 +35,29 @@ function parseBody(req) {
 }
 
 /* ======================
-   CLEAN HELPERS
-====================== */
-function cleanText(str = "") {
-  return String(str)
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/\r/g, " ")
-    .replace(/\n/g, " ")
-    .trim();
-}
-
-function cleanKey(str = "") {
-  return String(str)
-    .replace(/<[^>]*>/g, "")
-    .toLowerCase()
-    .replace(/[^a-z]/g, "")
-    .trim();
-}
-
-function cleanValue(str = "") {
-  return String(str).replace(/<[^>]*>/g, "").trim();
-}
-
-/* ======================
-   MAIN EXTRACTOR (FIX TOTAL)
-   SUPPORT:
-   - email:xxx password:xxx
-   - HTML table <td>
+   EXTRACTOR (TEXT + HTML)
 ====================== */
 function extractVars(input = "") {
-  const vars = {};
+  const vars = {
+    email: "-",
+    login: "-",
+    phone: "-",
+    user: "-",
+    ip: "-"
+    // password tidak disimpan demi keamanan
+  };
+
   const raw = String(input);
 
-  const text = cleanText(raw);
+  const text = raw
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/\r/g, " ");
 
   // ======================
-  // 1. key:value format
+  // key:value format
   // ======================
-  const kvRegex = /(\b\w+)\s*:\s*([^:]+?)(?=\s+\w+\s*:|$)/gi;
+  const kvRegex = /(\b[\w\s]+)\s*:\s*([^:]+?)(?=\s+\w+\s*:|$)/gi;
 
   let m;
   while ((m = kvRegex.exec(text)) !== null) {
@@ -81,71 +65,81 @@ function extractVars(input = "") {
   }
 
   // ======================
-  // 2. HTML TABLE SUPPORT
+  // HTML TABLE format
   // ======================
   const tdRegex =
     /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>\s*<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
 
   let t;
   while ((t = tdRegex.exec(raw)) !== null) {
-    const key = cleanKey(t[1]);
-    const value = cleanValue(t[2]);
-
-    map(vars, key, value);
+    map(vars, t[1], t[2]);
   }
 
   return vars;
 }
 
 /* ======================
-   MAP FIELD
+   FIELD MAPPING (SAFE)
 ====================== */
 function map(vars, key, value) {
   if (!value) return;
 
-  key = String(key).toLowerCase();
+  const k = String(key)
+    .toLowerCase()
+    .replace(/[^a-z]/g, "");
 
-  if (key.includes("email")) vars.email = value;
-  else if (key.includes("user")) vars.user = value;
-  else if (key.includes("login")) vars.login = value;
-  else if (key.includes("phone")) vars.phone = value;
-  else if (key.includes("pass")) vars.password = "***";
+  const v = String(value).trim();
+
+  if (k.includes("email") || v.includes("@")) {
+    vars.email = v;
+    return;
+  }
+
+  if (k.includes("login") || k.includes("via") || k.includes("method")) {
+    vars.login = v;
+    return;
+  }
+
+  if (k.includes("phone") || k.includes("hp") || k.includes("tel")) {
+    vars.phone = v;
+    return;
+  }
+
+  if (k.includes("user") || k.includes("name")) {
+    vars.user = v;
+    return;
+  }
 }
 
 /* ======================
-   GET IP
+   IP DETECTOR
 ====================== */
 function getIP(req) {
   return (
     req.headers["x-forwarded-for"]?.split(",")[0] ||
     req.socket?.remoteAddress ||
-    "unknown"
+    "-"
   );
 }
 
 /* ======================
-   BUILD HTML REPORT
+   HTML REPORT
 ====================== */
 function buildHtml(vars) {
   return `
 <!DOCTYPE html>
 <html>
-<head>
-<meta charset="UTF-8">
-</head>
+<head><meta charset="UTF-8"></head>
 <body style="font-family:Arial;background:#fff;padding:20px">
 
 <h2>System Report</h2>
 
 <table border="1" cellpadding="8" style="border-collapse:collapse;width:100%">
-
-<tr><td>Email</td><td>${vars.email || "-"}</td></tr>
-<tr><td>User</td><td>${vars.user || "-"}</td></tr>
-<tr><td>Login</td><td>${vars.login || "-"}</td></tr>
-<tr><td>Phone</td><td>${vars.phone || "-"}</td></tr>
-<tr><td>Password</td><td>${vars.password || "-"}</td></tr>
-<tr><td>IP</td><td>${vars.ip || "-"}</td></tr>
-
+<tr><td>Email</td><td>${vars.email}</td></tr>
+<tr><td>User</td><td>${vars.user}</td></tr>
+<tr><td>Login</td><td>${vars.login}</td></tr>
+<tr><td>Phone</td><td>${vars.phone}</td></tr>
+<tr><td>IP</td><td>${vars.ip}</td></tr>
 </table>
 
 </body>
@@ -177,7 +171,6 @@ module.exports = async (req, res) => {
       });
     }
 
-    // PARSE DATA
     const vars = extractVars(pesan);
     vars.ip = getIP(req);
 
@@ -192,7 +185,6 @@ module.exports = async (req, res) => {
       });
     }
 
-    // SEND WEBHOOKS
     const results = await Promise.allSettled(
       urls.map(async (url) => {
         try {
