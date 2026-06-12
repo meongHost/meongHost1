@@ -3,7 +3,9 @@ const path = require("path");
 
 const FILE = path.join(process.cwd(), "data", "urls.json");
 
-// load JSON
+// ======================
+// LOAD URLS
+// ======================
 function loadUrls() {
   try {
     if (!fs.existsSync(FILE)) return [];
@@ -13,9 +15,24 @@ function loadUrls() {
   }
 }
 
-// save JSON
+// ======================
+// SAVE URLS
+// ======================
 function saveUrls(data) {
   fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
+}
+
+// ======================
+// BODY PARSER FIX (IMPORTANT)
+// ======================
+function parseBody(req) {
+  if (!req.body) return {};
+
+  if (typeof req.body === "string") {
+    return Object.fromEntries(new URLSearchParams(req.body));
+  }
+
+  return req.body;
 }
 
 module.exports = async (req, res) => {
@@ -27,10 +44,7 @@ module.exports = async (req, res) => {
       });
     }
 
-    const body =
-      typeof req.body === "string"
-        ? Object.fromEntries(new URLSearchParams(req.body))
-        : req.body || {};
+    const body = parseBody(req);
 
     const action = body.action || "send";
 
@@ -89,24 +103,22 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // SEND MODE (HTML SUPPORT)
+    // SEND MODE (TEXT + HTML)
     // ======================
     const subjek = (body.subjek || "").trim();
-
     const pesan = body.pesan || "";
     const pesan_html = body.pesan_html || "";
-
     const sender = body.sender || "";
 
     if (!subjek || (!pesan && !pesan_html)) {
       return res.status(400).json({
         success: false,
-        message: "subjek dan pesan/pesan_html wajib diisi"
+        message: "subjek & pesan/pesan_html wajib diisi"
       });
     }
 
-    const finalMessage = pesan_html || pesan;
     const isHtml = Boolean(pesan_html);
+    const finalMessage = pesan_html || pesan;
 
     const payload = new URLSearchParams({
       subjek,
