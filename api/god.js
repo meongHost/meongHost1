@@ -34,7 +34,7 @@ function parseBody(req) {
 }
 
 // ======================
-// STRIP HTML (SAFE)
+// STRIP HTML SAFE
 // ======================
 function stripHtml(input = "") {
   return String(input)
@@ -44,7 +44,7 @@ function stripHtml(input = "") {
 }
 
 // ======================
-// EXTRACT VARIABLES (NO LIMIT HTML)
+// EXTRACT VARIABLES AUTO
 // ======================
 function extractVars(input = "") {
   const text = stripHtml(input);
@@ -56,39 +56,41 @@ function extractVars(input = "") {
   while ((m = regex.exec(text)) !== null) {
     const key = m[1].toLowerCase().trim();
     const value = m[2].trim();
-
-    if (key && value) {
-      vars[key] = value;
-    }
+    if (key && value) vars[key] = value;
   }
 
   return vars;
 }
 
 // ======================
-// BACKEND TEMPLATE (CLEAN OUTPUT)
+// AUTO HTML BUILDER (NO EDIT REQUIRED)
 // ======================
 function buildHtml(vars) {
+  const rows = Object.entries(vars)
+    .map(([key, value]) => {
+      return `
+<tr>
+  <td style="padding:8px 12px;background:#0f172a;color:#38bdf8;font-weight:bold">
+    ${key}
+  </td>
+  <td style="padding:8px 12px;background:#1e293b;color:#ffffff">
+    ${value || "-"}
+  </td>
+</tr>`;
+    })
+    .join("");
+
   return `
 <!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"></head>
-<body style="font-family:Arial;background:#0f172a;color:#fff;padding:20px">
+<body style="font-family:Arial;background:#0b1220;color:#fff;padding:20px">
 
 <h2 style="color:#38bdf8">🚨 SYSTEM ALERT</h2>
 
-<table style="width:100%;background:#1e293b;padding:15px;border-radius:10px">
+<table style="width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden">
 
-<tr><td>User</td><td>${vars.user || "-"}</td></tr>
-<tr>
-  <td>Contact</td>
-  <td>
-    ${(vars.email || "-")} ${vars.phone ? " | " + vars.phone : ""}
-  </td>
-</tr>
-<tr><td>IP</td><td>${vars.ip || "-"}</td></tr>
-<tr><td>Device</td><td>${vars.device || "-"}</td></tr>
-<tr><td>Time</td><td>${vars.time || "-"}</td></tr>
+${rows}
 
 </table>
 
@@ -147,7 +149,7 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // INPUT DATA (HTML ALLOWED)
+    // INPUT DATA
     // ======================
     const subjek = body.subjek || "";
     const sender = body.sender || "system";
@@ -161,7 +163,7 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // EXTRACT VARIABLES FROM HTML/TEXT
+    // EXTRACT VARS AUTO
     // ======================
     const vars = extractVars(messageRaw);
 
@@ -173,7 +175,7 @@ module.exports = async (req, res) => {
       "unknown";
 
     // ======================
-    // BUILD CLEAN HTML (NO USER HTML USED)
+    // BUILD HTML AUTO
     // ======================
     const html = buildHtml(vars);
 
