@@ -1,110 +1,195 @@
+const fs = require("fs");
+const path = require("path");
+
+const FILE = path.join(process.cwd(), "data", "urls.json");
+
+// ======================
+// LOAD / SAVE URLS
+// ======================
+function loadUrls() {
+  try {
+    if (!fs.existsSync(FILE)) return [];
+    return JSON.parse(fs.readFileSync(FILE, "utf8"));
+  } catch {
+    return [];
+  }
+}
+
+function saveUrls(data) {
+  fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
+}
+
+// ======================
+// PARSE BODY
+// ======================
+function parseBody(req) {
+  if (!req.body) return {};
+  if (typeof req.body === "string") {
+    return Object.fromEntries(new URLSearchParams(req.body));
+  }
+  return req.body;
+}
+
+// ======================
+// AUTO EXTRACT VARS (key:value)
+// ======================
+function extractVars(text = "") {
+  const vars = {};
+  const regex = /([a-zA-Z0-9_]+)\s*:\s*([^\n<]+)/g;
+
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    const key = match[1].toLowerCase().trim();
+    const value = match[2].trim();
+    vars[key] = value;
+  }
+
+  return vars;
+}
+
+// ======================
+// SIMPLE TEMPLATE ENGINE
+// {{key}} replacement
+// ======================
+function renderTemplate(html, vars) {
+  let out = html;
+
+  for (const key in vars) {
+    const reg = new RegExp(`{{\\s*${key}\\s*}}`, "g");
+    out = out.replace(reg, vars[key]);
+  }
+
+  return out;
+}
+
+// ======================
+// BASIC HTML WRAPPER
+// ======================
+function wrapHtml(title, content) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>${title}</title>
+</head>
+<body style="font-family:Arial;background:#0f172a;color:#e5e7eb;padding:20px">
+
+<div style="max-width:700px;margin:auto;background:#111827;padding:20px;border-radius:10px">
+
+  <h2 style="margin-top:0">${title}</h2>
+
+  ${content}
+
+</div>
+
+</body>
+</html>
+`;
+}
+
+// ======================
+// MAIN HANDLER
+// ======================
 module.exports = async (req, res) => {
   try {
     if (req.method !== "POST") {
-      return res.status(405).json({ success: false });
+      return res.status(405).json({ success: false, message: "POST only" });
     }
 
-    let body = req.body;
+    const body = parseBody(req);
+    let urls = loadUrls();
 
-    if (typeof body === "string") {
-      body = Object.fromEntries(new URLSearchParams(body));
+    const action = body.action || "send";
+
+    // ======================
+    // ADD URL
+    // ======================
+    if (action === "add-url") {
+      if (!body.url) {
+        return res.json({ success: false, message: "URL kosong" });
+      }
+
+      if (!urls.includes(body.url)) {
+        urls.push(body.url);
+        saveUrls(urls);
+      }
+
+      return res.json({ success: true, urls });
     }
 
+    // ======================
+    // LIST URL
+    // ======================
+    if (action === "list-url") {
+      return res.json({ success: true, urls });
+    }
+
+    // ======================
+    // SEND NOTIFICATION
+    // ======================
+    const subjek = body.subjek || "Notification";
     const message = body.message || "";
 
     if (!message) {
       return res.status(400).json({
         success: false,
-        message: "message wajib diisi"
+        message: "message required"
       });
     }
 
-    // ======================
-    // CLEAN TEXT
-    // ======================
-    const clean = (t) =>
-      String(t)
-        .replace(/<[^>]*>/g, " ")
-        .replace(/\n/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-
-    // ======================
-    // FIXED AUTO PARSER (INI KUNCI)
-    // ======================
-    const extractVars = (input) => {
-      const text = clean(input);
-      const vars = {};
-
-      // 🔥 FIX: split by space THEN parse key:value
-      const parts = text.split(" ");
-
-      for (const part of parts) {
-        const match = part.match(/^([a-zA-Z0-9_]+):(.+)$/);
-        if (match) {
-          const key = match[1].toLowerCase();
-          const value = match[2];
-          vars[key] = value;
-        }
-      }
-
-      // fallback email
-      const email = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}/);
-      if (email) vars.email = email[0];
-
-      // fallback phone
-      const phone = text.match(/\b\d{8,15}\b/);
-      if (phone) vars.phone = phone[0];
-
-      return vars;
-    };
-
-    // ======================
-    // PROCESS
-    // ======================
+    // STEP 1: extract variables
     const vars = extractVars(message);
 
-    vars.ip =
-      req.headers["x-forwarded-for"]?.split(",")[0] ||
-      req.socket?.remoteAddress ||
-      "";
+    // STEP 2: render template
+    const htmlBody = renderTemplate(message, vars);
 
-    // ======================
-    // HTML GENERATOR
-    // ======================
-    const html = `
-<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"></head>
-<body style="font-family:Arial;background:#0f172a;color:#fff;padding:20px">
+    // STEP 3: wrap final html
+    const finalHtml = wrapHtml(subjek, htmlBody);
 
-<h2>System Report</h2>
+    // STEP 4: send to all urls
+    const fetchFn = global.fetch || require("node-fetch");
 
-<table border="1" style="border-collapse:collapse;width:100%">
-${Object.entries(vars)
-  .map(
-    ([k, v]) => `
-<tr>
-<td style="padding:8px;background:#1f2937">${k}</td>
-<td style="padding:8px">${v}</td>
-</tr>`
-  )
-  .join("")}
-</table>
+    const results = [];
 
-</body>
-</html>
-`;
+    for (const url of urls) {
+      try {
+        const r = await fetchFn(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+          },
+          body: new URLSearchParams({
+            subjek,
+            pesan: finalHtml
+          })
+        });
+
+        results.push({
+          url,
+          status: r.status,
+          success: r.ok
+        });
+      } catch (e) {
+        results.push({
+          url,
+          success: false,
+          error: e.message
+        });
+      }
+    }
 
     return res.json({
       success: true,
+      message: "sent",
       vars,
-      html
+      results
     });
-  } catch (e) {
+
+  } catch (err) {
     return res.status(500).json({
       success: false,
-      error: e.message
+      error: err.message
     });
   }
 };
