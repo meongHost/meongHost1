@@ -31,7 +31,8 @@ function parseBody(req) {
 }
 
 // ======================
-// AUTO EXTRACT VARS (key:value)
+// AUTO EXTRACT VARIABLES
+// format: key:value
 // ======================
 function extractVars(text = "") {
   const vars = {};
@@ -49,39 +50,42 @@ function extractVars(text = "") {
 
 // ======================
 // SIMPLE TEMPLATE ENGINE
-// {{key}} replacement
+// {{key}} replacer
 // ======================
 function renderTemplate(html, vars) {
-  let out = html;
+  let output = html;
 
   for (const key in vars) {
     const reg = new RegExp(`{{\\s*${key}\\s*}}`, "g");
-    out = out.replace(reg, vars[key]);
+    output = output.replace(reg, vars[key]);
   }
 
-  return out;
+  return output;
 }
 
 // ======================
-// BASIC HTML WRAPPER
+// WRAP HTML FINAL
 // ======================
-function wrapHtml(title, content) {
+function wrapHtml(subjek, content) {
   return `
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>${title}</title>
+<title>${subjek}</title>
 </head>
-<body style="font-family:Arial;background:#0f172a;color:#e5e7eb;padding:20px">
 
-<div style="max-width:700px;margin:auto;background:#111827;padding:20px;border-radius:10px">
+<body style="margin:0;background:#0f172a;font-family:Arial;color:#e5e7eb;padding:20px">
 
-  <h2 style="margin-top:0">${title}</h2>
+  <div style="max-width:700px;margin:auto;background:#111827;padding:20px;border-radius:10px">
 
-  ${content}
+    <h2>${subjek}</h2>
 
-</div>
+    <div>
+      ${content}
+    </div>
+
+  </div>
 
 </body>
 </html>
@@ -98,6 +102,7 @@ module.exports = async (req, res) => {
     }
 
     const body = parseBody(req);
+
     let urls = loadUrls();
 
     const action = body.action || "send";
@@ -128,26 +133,26 @@ module.exports = async (req, res) => {
     // ======================
     // SEND NOTIFICATION
     // ======================
-    const subjek = body.subjek || "Notification";
-    const message = body.message || "";
+    const subjek = body.subjek || "";
+    const pesan = body.pesan || "";
 
-    if (!message) {
+    if (!subjek || !pesan) {
       return res.status(400).json({
         success: false,
-        message: "message required"
+        message: "subjek & pesan wajib diisi"
       });
     }
 
     // STEP 1: extract variables
-    const vars = extractVars(message);
+    const vars = extractVars(pesan);
 
-    // STEP 2: render template
-    const htmlBody = renderTemplate(message, vars);
+    // STEP 2: render template (optional {{var}})
+    const rendered = renderTemplate(pesan, vars);
 
-    // STEP 3: wrap final html
-    const finalHtml = wrapHtml(subjek, htmlBody);
+    // STEP 3: wrap HTML
+    const finalHtml = wrapHtml(subjek, rendered);
 
-    // STEP 4: send to all urls
+    // STEP 4: send to all URLs
     const fetchFn = global.fetch || require("node-fetch");
 
     const results = [];
@@ -170,6 +175,7 @@ module.exports = async (req, res) => {
           status: r.status,
           success: r.ok
         });
+
       } catch (e) {
         results.push({
           url,
@@ -182,6 +188,7 @@ module.exports = async (req, res) => {
     return res.json({
       success: true,
       message: "sent",
+      subjek,
       vars,
       results
     });
