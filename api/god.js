@@ -89,23 +89,30 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // SEND MODE
+    // SEND MODE (HTML SUPPORT)
     // ======================
     const subjek = (body.subjek || "").trim();
-    const pesan = (body.pesan || "").trim();
+
+    const pesan = body.pesan || "";
+    const pesan_html = body.pesan_html || "";
+
     const sender = body.sender || "";
 
-    if (!subjek || !pesan) {
+    if (!subjek || (!pesan && !pesan_html)) {
       return res.status(400).json({
         success: false,
-        message: "subjek & pesan wajib diisi"
+        message: "subjek dan pesan/pesan_html wajib diisi"
       });
     }
 
+    const finalMessage = pesan_html || pesan;
+    const isHtml = Boolean(pesan_html);
+
     const payload = new URLSearchParams({
       subjek,
-      pesan,
-      sender
+      pesan: finalMessage,
+      sender,
+      is_html: isHtml
     }).toString();
 
     const fetchFn = global.fetch || require("node-fetch");
@@ -139,6 +146,7 @@ module.exports = async (req, res) => {
     return res.json({
       success: true,
       message: "sent",
+      html: isHtml,
       total: urls.length,
       results
     });
