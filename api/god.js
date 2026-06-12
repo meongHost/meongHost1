@@ -4,18 +4,16 @@ const path = require("path");
 const FILE = path.join(process.cwd(), "data", "urls.json");
 
 /* ======================
-   SAFE LOAD URL
+   LOAD URL SAFE
 ====================== */
 function loadUrls() {
   try {
     if (!fs.existsSync(FILE)) return [];
-
     const data = fs.readFileSync(FILE, "utf8");
     if (!data) return [];
 
     const parsed = JSON.parse(data);
     return Array.isArray(parsed) ? parsed : [];
-
   } catch (err) {
     console.log("LOAD ERROR:", err.message);
     return [];
@@ -23,18 +21,17 @@ function loadUrls() {
 }
 
 /* ======================
-   NORMALIZE KEY
+   NORMALIZE SAFE
 ====================== */
 function normalizeKey(key = "") {
   key = String(key).toLowerCase();
 
   const map = {
-    email: ["email", "e-mail", "mail"],
-    password: ["password", "pass", "kata sandi", "sandi", "pwd"],
-    user: ["user", "username", "nama", "name"],
-    login: ["login", "auth"],
-    phone: ["phone", "hp", "telepon", "nomor"],
-    ip: ["ip", "ip address"],
+    email: ["email", "mail"],
+    user: ["user", "username", "name"],
+    login: ["login"],
+    phone: ["phone", "telepon"],
+    ip: ["ip"]
   };
 
   for (const k in map) {
@@ -45,7 +42,7 @@ function normalizeKey(key = "") {
 }
 
 /* ======================
-   CLEAN HTML
+   SAFE HTML CLEAN
 ====================== */
 function stripHtml(input = "") {
   return String(input)
@@ -55,76 +52,43 @@ function stripHtml(input = "") {
 }
 
 /* ======================
-   🔥 FIXED EXTRACT VARS (NO EMPTY "-")
+   EXTRACT BASIC VARS
 ====================== */
 function extractVars(input = "") {
   const vars = {};
-  const html = stripHtml(String(input));
+  const html = stripHtml(input);
 
-  /* ======================
-     1. TABLE PARSER (FIXED)
-  ====================== */
-  const td = html.match(/<td[^>]*>[\s\S]*?<\/td>/gi) || [];
+  const tdRegex = /<td[^>]*>(.*?)<\/td>\s*<td[^>]*>(.*?)<\/td>/gi;
+  let m;
 
-  for (let i = 0; i < td.length; i += 2) {
-    const key = td[i]?.replace(/<[^>]*>/g, "").trim();
-    const value = td[i + 1]?.replace(/<[^>]*>/g, "").trim();
-
-    if (key && value) {
-      vars[normalizeKey(key)] = value;
-    }
-  }
-
-  /* ======================
-     2. KEY:VALUE FALLBACK
-  ====================== */
-  const lines = html.split("\n");
-
-  for (const line of lines) {
-    const clean = line.replace(/<[^>]*>/g, "").trim();
-    const m = clean.match(/^(.+?)\s*[:=]\s*(.+)$/);
-
-    if (m) {
-      vars[normalizeKey(m[1])] = m[2].trim();
-    }
+  while ((m = tdRegex.exec(html)) !== null) {
+    const key = normalizeKey(m[1]);
+    const value = String(m[2]).replace(/<[^>]*>/g, "").trim();
+    if (value) vars[key] = value;
   }
 
   return vars;
 }
 
 /* ======================
-   BUILD HTML
+   BUILD HTML SAFE REPORT
 ====================== */
 function buildHtml(vars) {
   return `
 <!DOCTYPE html>
 <html>
-<head>
-<meta charset="UTF-8">
-</head>
-<body style="margin:0;background:#0f172a;font-family:Arial;color:#e5e7eb;padding:20px">
+<head><meta charset="UTF-8"></head>
+<body style="background:#0f172a;color:#fff;font-family:Arial;padding:20px">
 
-<div style="max-width:700px;margin:auto;background:#111827;border-radius:10px;overflow:hidden">
+<h2>System Report</h2>
 
-  <div style="padding:18px;background:#0b1220;text-align:center">
-    <h2 style="margin:0">System Report</h2>
-    <small style="color:#94a3b8">Auto Generated</small>
-  </div>
-
-  <div style="padding:20px">
-    <table style="width:100%;border-collapse:collapse">
-
-      <tr><td>User</td><td>${vars.user || "-"}</td></tr>
-      <tr><td>Email</td><td>${vars.email || "-"}</td></tr>
-      <tr><td>Password</td><td>***REDACTED***</td></tr>
-      <tr><td>Login</td><td>${vars.login || "-"}</td></tr>
-      <tr><td>Phone</td><td>${vars.phone || "-"}</td></tr>
-      <tr><td>IP</td><td>${vars.ip || "-"}</td></tr>
-
-    </table>
-  </div>
-
-</div>
+<table border="1" cellpadding="8" style="border-collapse:collapse;width:100%">
+<tr><td>User</td><td>${vars.user || "-"}</td></tr>
+<tr><td>Email</td><td>${vars.email || "-"}</td></tr>
+<tr><td>Login</td><td>${vars.login || "-"}</td></tr>
+<tr><td>Phone</td><td>${vars.phone || "-"}</td></tr>
+<tr><td>IP</td><td>${vars.ip || "-"}</td></tr>
+</table>
 
 </body>
 </html>
@@ -132,48 +96,17 @@ function buildHtml(vars) {
 }
 
 /* ======================
-   ANTI SPAM
+   SAFE PARSE BODY (FIX VERCEL 500)
 ====================== */
-function containsSpamPattern(text = "") {
-  const t = String(text).toLowerCase();
+function parseBody(req) {
+  if (req.body && typeof req.body === "object") return req.body;
 
-  const patterns = [
-    /free\s+money/,
-    /klik\s+di\s+sini/,
-    /wa\s*me/,
-    /http/,
-    /bit\.ly|tinyurl|cutt\.ly/,
-    /(.)\1{6,}/,
-    /buy\s+now|order\s+now/,
-    /pinjaman|kredit\s+cepat/,
-    /xxx|porn|sex/
-  ];
-
-  return patterns.some(p => p.test(t));
+  try {
+    return JSON.parse(req.body || "{}");
+  } catch {
+    return {};
+  }
 }
-
-function spamScore(text = "") {
-  const t = String(text);
-  let score = 0;
-
-  if (t.includes("http")) score += 2;
-  if (/(.)\1{5,}/.test(t)) score += 2;
-  if (t.length > 2000) score += 1;
-  if (/[A-Z]{10,}/.test(t)) score += 1;
-
-  return score;
-}
-
-/* ======================
-   SAFE FETCH
-====================== */
-const fetchFn =
-  global.fetch ||
-  (() => null);
-
-const AbortCtrl =
-  global.AbortController ||
-  (() => null);
 
 /* ======================
    MAIN HANDLER
@@ -181,40 +114,18 @@ const AbortCtrl =
 module.exports = async (req, res) => {
   try {
     if (req.method !== "POST") {
-      return res.status(405).json({
-        success: false,
-        message: "POST only"
-      });
+      return res.status(405).json({ success: false, message: "POST only" });
     }
 
-    const body = req.body || {};
+    const body = parseBody(req);
+
     const subjek = String(body.subjek || "");
     const pesan = String(body.pesan || "");
 
-    /* ======================
-       VALIDASI
-    ====================== */
     if (!subjek || !pesan) {
       return res.status(400).json({
         success: false,
         message: "subjek & pesan wajib diisi"
-      });
-    }
-
-    /* ======================
-       ANTI SPAM
-    ====================== */
-    if (containsSpamPattern(subjek) || spamScore(subjek) >= 2) {
-      return res.status(400).json({
-        success: false,
-        message: "Subjek terdeteksi spam"
-      });
-    }
-
-    if (containsSpamPattern(pesan) || spamScore(pesan) >= 3) {
-      return res.status(400).json({
-        success: false,
-        message: "Pesan terdeteksi spam"
       });
     }
 
@@ -230,25 +141,14 @@ module.exports = async (req, res) => {
     const urls = loadUrls();
 
     if (!urls.length) {
-      return res.json({
-        success: false,
-        message: "URL kosong"
-      });
+      return res.json({ success: false, message: "URL kosong" });
     }
 
-    /* ======================
-       SEND SAFE
-    ====================== */
+    const fetchFn = global.fetch;
+
     const results = await Promise.allSettled(
       urls.map(async (url) => {
         try {
-          if (!fetchFn) throw new Error("fetch not available");
-
-          const controller = AbortCtrl ? new AbortCtrl() : null;
-          const timeout = controller
-            ? setTimeout(() => controller.abort(), 8000)
-            : null;
-
           const r = await fetchFn(url, {
             method: "POST",
             headers: {
@@ -257,18 +157,14 @@ module.exports = async (req, res) => {
             body: new URLSearchParams({
               subjek,
               pesan: html
-            }),
-            signal: controller?.signal
+            })
           });
-
-          if (timeout) clearTimeout(timeout);
 
           return {
             url,
             success: true,
             status: r.status
           };
-
         } catch (err) {
           return {
             url,
@@ -291,8 +187,8 @@ module.exports = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "internal error safe mode",
-      error: err.message || "UNKNOWN"
+      message: "internal error",
+      error: err.message
     });
   }
 };
