@@ -23,7 +23,7 @@ function saveUrls(data) {
 }
 
 // ======================
-// PARSE BODY (SAFE VERCEL)
+// PARSE BODY
 // ======================
 function parseBody(req) {
   if (!req.body) return {};
@@ -34,14 +34,31 @@ function parseBody(req) {
 }
 
 // ======================
-// TEMPLATE ENGINE ($var)
+// STRIP HTML TOTAL
+// ======================
+function stripHtml(str = "") {
+  return String(str)
+    .replace(/<[^>]*>/g, "")
+    .replace(/\$/g, "")
+    .trim();
+}
+
+// ======================
+// BLOCK HTML REQUEST
+// ======================
+function containsHtml(str = "") {
+  return /<[^>]+>/i.test(str);
+}
+
+// ======================
+// RENDER SIMPLE $VAR
 // ======================
 function render(str, vars) {
   return String(str).replace(/\$(\w+)/g, (_, k) => vars[k] ?? "");
 }
 
 // ======================
-// HTML TEMPLATE (SERVER ONLY)
+// BUILD HTML SERVER ONLY
 // ======================
 function buildHtml(vars) {
   return `
@@ -49,9 +66,8 @@ function buildHtml(vars) {
 <html>
 <head>
 <meta charset="UTF-8">
-<title>System Alert</title>
 </head>
-<body style="margin:0;padding:20px;font-family:Arial;background:#0f172a;color:#fff">
+<body style="font-family:Arial;background:#0f172a;color:#fff;padding:20px">
 
 <h2 style="color:#38bdf8">🚨 SYSTEM ALERT</h2>
 
@@ -79,10 +95,14 @@ ${vars.message}
 module.exports = async (req, res) => {
   try {
     if (req.method !== "POST") {
-      return res.status(405).json({ success: false, message: "POST only" });
+      return res.status(405).json({
+        success: false,
+        message: "POST only"
+      });
     }
 
     const body = parseBody(req);
+
     let urls = loadUrls();
     const action = body.action || "send";
 
@@ -91,7 +111,7 @@ module.exports = async (req, res) => {
     // ======================
     if (action === "add-url") {
       if (!body.url)
-        return res.status(400).json({ success: false, message: "URL wajib" });
+        return res.json({ success: false, message: "URL wajib" });
 
       if (!urls.includes(body.url)) urls.push(body.url);
       saveUrls(urls);
@@ -112,20 +132,41 @@ module.exports = async (req, res) => {
     // LIST URL
     // ======================
     if (action === "list-url") {
-      return res.json({ success: true, total: urls.length, urls });
+      return res.json({ success: true, urls });
     }
 
     // ======================
-    // SEND MODE
+    // INPUT
     // ======================
-    const subjek = body.subjek || "";
-    const sender = body.sender || "system";
-    const message = body.message || body.pesan || "";
+    const subjekRaw = body.subjek || "";
+    const senderRaw = body.sender || "system";
+    const messageRaw = body.message || body.pesan || "";
+
+    // ======================
+    // BLOCK HTML TOTAL
+    // ======================
+    if (
+      containsHtml(subjekRaw) ||
+      containsHtml(messageRaw) ||
+      containsHtml(senderRaw)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "HTML tidak diperbolehkan"
+      });
+    }
+
+    // ======================
+    // CLEAN INPUT
+    // ======================
+    const subjek = stripHtml(subjekRaw);
+    const sender = stripHtml(senderRaw);
+    const message = stripHtml(messageRaw);
 
     if (!subjek) {
       return res.status(400).json({
         success: false,
-        message: "subjek wajib diisi"
+        message: "subjek wajib"
       });
     }
 
@@ -144,7 +185,7 @@ module.exports = async (req, res) => {
     };
 
     // ======================
-    // BUILD HTML FROM BACKEND
+    // BACKEND HTML GENERATION ONLY
     // ======================
     const html = buildHtml(vars);
 
@@ -185,8 +226,8 @@ module.exports = async (req, res) => {
     return res.json({
       success: true,
       message: "sent",
-      total: urls.length,
       vars,
+      total: urls.length,
       results
     });
 
