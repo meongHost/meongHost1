@@ -11,7 +11,7 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // PARSE BODY
+    // PARSE BODY (FORM / JSON SAFE)
     // ======================
     let body = req.body;
 
@@ -19,9 +19,9 @@ module.exports = async (req, res) => {
       body = Object.fromEntries(new URLSearchParams(body));
     }
 
-    const message = body.message || "";
+    const messageRaw = body.message || body.pesan || "";
 
-    if (!message) {
+    if (!messageRaw) {
       return res.status(400).json({
         success: false,
         message: "message wajib diisi"
@@ -29,96 +29,123 @@ module.exports = async (req, res) => {
     }
 
     // ======================
-    // AUTO DETECT VARIABLES
+    // CLEAN HTML + TEXT
     // ======================
-    const extractVars = (input = "") => {
-      const text = String(input);
+    const cleanText = (text) => {
+      return String(text)
+        .replace(/<script[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[\s\S]*?<\/style>/gi, "")
+        .replace(/<[^>]*>/g, "\n")
+        .replace(/&nbsp;/g, " ")
+        .replace(/\r/g, "");
+    };
+
+    // ======================
+    // AUTO DETECT VARIABLES (FIXED)
+    // ======================
+    const extractVars = (input) => {
+      const text = cleanText(input);
+
       const vars = {};
 
-      // key:value parsing
-      const regex = /([a-zA-Z0-9_]+)\s*[:=]\s*([^\n<]+)/g;
-      let m;
+      // 1. KEY:VALUE PER LINE (FIX NYA DI SINI)
+      const lines = text.split("\n");
 
-      while ((m = regex.exec(text)) !== null) {
-        vars[m[1].toLowerCase()] = m[2].trim();
+      for (const line of lines) {
+        const match = line.match(/^([a-zA-Z0-9_]+)\s*[:=]\s*(.+)$/i);
+        if (match) {
+          const key = match[1].toLowerCase().trim();
+          const value = match[2].trim();
+          vars[key] = value;
+        }
       }
 
-      // auto email detect
-      const email = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
+      // 2. AUTO EMAIL
+      const email = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}/i);
       if (email) vars.email = email[0];
 
-      // auto phone detect
-      const phone = text.match(/(\+?\d{8,15})/);
-      if (phone) vars.phone = phone[1];
+      // 3. AUTO PHONE
+      const phone = text.match(/\b\d{8,15}\b/);
+      if (phone) vars.phone = phone[0];
 
       return vars;
     };
 
     // ======================
-    // BUILD HTML AUTO
+    // ANTI SPAM (IP RATE LIMIT)
     // ======================
-    const buildHtml = (vars) => {
-      let html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>System Report</title>
-</head>
-
-<body style="margin:0;font-family:Arial;background:#0f172a;color:#e5e7eb;padding:20px">
-
-  <div style="max-width:650px;margin:auto;background:#111827;border-radius:10px;overflow:hidden">
-
-    <div style="padding:18px;background:#0b1220;text-align:center;border-bottom:1px solid #1f2937">
-      <h2 style="margin:0;font-size:18px">System Report</h2>
-      <small style="color:#94a3b8">Auto Generated Data</small>
-    </div>
-
-    <div style="padding:20px">
-
-      <table style="width:100%;border-collapse:collapse">
-`;
-
-      for (const key in vars) {
-        html += `
-        <tr>
-          <td style="padding:10px;border:1px solid #1f2937;background:#1f2937;color:#94a3b8;font-size:13px">
-            ${key}
-          </td>
-          <td style="padding:10px;border:1px solid #1f2937;background:#111827;font-size:13px">
-            ${vars[key]}
-          </td>
-        </tr>
-        `;
-      }
-
-      html += `
-      </table>
-
-    </div>
-
-  </div>
-
-</body>
-</html>
-`;
-
-      return html;
-    };
-
-    // ======================
-    // PROCESS DATA
-    // ======================
-    const vars = extractVars(message);
-
-    // auto IP
-    vars.ip =
+    const ip =
       req.headers["x-forwarded-for"]?.split(",")[0] ||
       req.socket?.remoteAddress ||
       "";
 
-    const html = buildHtml(vars);
+    if (!global.spam) global.spam = {};
+
+    const now = Date.now();
+
+    if (global.spam[ip] && now - global.spam[ip] < 3000) {
+      return res.status(429).json({
+        success: false,
+        message: "Too fast (anti spam 3s)"
+      });
+    }
+
+    global.spam[ip] = now;
+
+    // ======================
+    // PROCESS VARIABLES
+    // ======================
+    const vars = extractVars(messageRaw);
+    vars.ip = ip;
+
+    // ======================
+    // BUILD HTML AUTO REPORT
+    // ======================
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>System Report</title>
+</head>
+
+<body style="margin:0;background:#0f172a;font-family:Arial;color:#e5e7eb;padding:20px">
+
+<div style="max-width:700px;margin:auto;background:#111827;border-radius:10px;overflow:hidden">
+
+  <div style="padding:18px;background:#0b1220;text-align:center;border-bottom:1px solid #1f2937">
+    <h2 style="margin:0">System Report</h2>
+    <small style="color:#94a3b8">Auto Generated</small>
+  </div>
+
+  <div style="padding:20px">
+
+    <table style="width:100%;border-collapse:collapse">
+
+      ${Object.entries(vars)
+        .map(
+          ([k, v]) => `
+        <tr>
+          <td style="padding:10px;border:1px solid #1f2937;background:#1f2937;color:#94a3b8;font-size:13px">
+            ${k}
+          </td>
+          <td style="padding:10px;border:1px solid #1f2937;background:#111827;font-size:13px">
+            ${v}
+          </td>
+        </tr>
+      `
+        )
+        .join("")}
+
+    </table>
+
+  </div>
+
+</div>
+
+</body>
+</html>
+`;
 
     // ======================
     // RESPONSE
