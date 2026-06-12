@@ -23,7 +23,7 @@ function saveUrls(data) {
 }
 
 // ======================
-// PARSE BODY (Vercel safe)
+// BODY PARSER (Vercel safe)
 // ======================
 function parseBody(req) {
   if (!req.body) return {};
@@ -39,8 +39,8 @@ function parseBody(req) {
 // TEMPLATE ENGINE ($var)
 // ======================
 function renderTemplate(str, vars) {
-  return String(str).replace(/\$(\w+)/g, (_, k) => {
-    return vars[k] !== undefined ? vars[k] : `$${k}`;
+  return String(str).replace(/\$(\w+)/g, (_, key) => {
+    return vars[key] !== undefined ? vars[key] : `$${key}`;
   });
 }
 
@@ -140,25 +140,26 @@ module.exports = async (req, res) => {
     };
 
     // ======================
-    // TEMPLATE PROCESS
+    // BUILD MESSAGE (FIX UTAMA)
     // ======================
-    const rawMessage = pesan_html || pesan || "<b>EMPTY MESSAGE</b>";
-    const finalMessage = renderTemplate(rawMessage, vars);
+    let rawMessage = "";
+
+    if (pesan_html && pesan_html.trim() !== "") {
+      rawMessage = pesan_html;
+    } else {
+      rawMessage = pesan;
+    }
+
+    let finalMessage = renderTemplate(rawMessage, vars);
+
+    if (!finalMessage || finalMessage.trim() === "") {
+      finalMessage = "<b>EMPTY MESSAGE</b>";
+    }
 
     const finalSubject = renderTemplate(subjek, vars);
 
     // ======================
-    // VALIDASI FINAL MESSAGE
-    // ======================
-    if (!finalMessage || finalMessage.trim() === "") {
-      return res.status(400).json({
-        success: false,
-        message: "pesan kosong setelah render"
-      });
-    }
-
-    // ======================
-    // BUILD PAYLOAD
+    // PAYLOAD KE TARGET
     // ======================
     const payload = new URLSearchParams({
       subjek: finalSubject,
