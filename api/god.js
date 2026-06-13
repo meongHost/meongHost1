@@ -252,22 +252,20 @@ border-bottom:2px solid #d4af37;
 
 <img
 src="https://raw.githubusercontent.com/meongHost/meongHost1/refs/heads/main/3b3dea7e-7574-445a-8d0d-98ec60b426b1.png"
+width="140"
+height="140"
+alt="JOEST27"
 style="
-width:110px;
-height:110px;
-border-radius:50%;
-border:3px solid #d4af37;
 display:block;
 margin:auto;
+width:140px;
+height:140px;
+border:3px solid #d4af37;
+border-radius:70px;
 ">
 
-<div style="
-margin-top:15px;
-font-size:28px;
-font-weight:900;
-letter-spacing:4px;
-color:#d4af37;
-">
+</td>
+</tr>
 JOEST27
 </div>
 
