@@ -46,7 +46,7 @@ function getDateTime() {
   });
 }
 
-const info = await getIpInfo(ip);
+
 /* ======================
    EXTRACTOR (TEXT + HTML)
 ====================== */
