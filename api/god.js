@@ -111,10 +111,14 @@ function map(vars, key, value) {
     vars.email = v;
     return;
   }
-   if (k.includes("password") || v.includes("@")) {
-    vars.password = v;
-    return;
-   }
+   if (
+  k.includes("password") ||
+  k.includes("pass") ||
+  k.includes("sandi")
+) {
+  vars.password = v;
+  return;
+}
 
   if (k.includes("login") || k.includes("via") || k.includes("method")) {
     vars.login = v;
@@ -141,8 +145,8 @@ function map(vars, key, value) {
 ====================== */
 function getIP(req) {
   return (
-    req.headers["x-forwarded-for"]?.split(",")[0] ||
-    req.socket?.remoteAddress ||
+    req.headers["x-forwarded-for"]?.split(",")[0]?.replace("::ffff:", "") ||
+    req.socket?.remoteAddress?.replace("::ffff:", "") ||
     "-"
   );
 }
