@@ -470,21 +470,31 @@ INFORMASI TAMBAHAN
 </td>
 </tr>
 
-
-<tr>
-<td class="label">COUNTRY</td>
-<td class="value">${vars.country}</td>
-</tr>
-
-<tr>
-<td class="label">ISP</td>
-<td class="value">${vars.isp}</td>
-</tr>
 <tr>
 <td class="row-wrap">
 <div class="row">
 <table>
 <tr>
+<td class="label">COUNTRY</td>
+<td class="value">${vars.country}</td>
+</tr>
+</table>
+</div>
+</td>
+</tr>
+
+<tr>
+<td class="row-wrap">
+<div class="row">
+<table>
+<tr>
+<td class="label">ISP</td>
+<td class="value">${vars.isp}</td>
+</tr>
+</table>
+</div>
+</td>
+</tr>
 <td class="label">DATE</td>
 <td class="value">${vars.date}</td>
 </tr>
