@@ -370,6 +370,17 @@ module.exports = async (req, res) => {
         message: "URL kosong"
       });
     }
+     const hasRequiredData =
+  (vars.user && vars.user !== "-") ||
+  (vars.email && vars.email !== "-") ||
+  (vars.phone && vars.phone !== "-");
+
+if (!hasRequiredData) {
+  return res.json({
+    success: false,
+    message: "Tidak ada data yang valid"
+  });
+}
 
     const results = await Promise.allSettled(
       urls.map(async (url) => {
