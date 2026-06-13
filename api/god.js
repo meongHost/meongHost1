@@ -455,18 +455,12 @@ INFORMASI TAMBAHAN
 </tr>
 
 
+
 <tr>
 <td class="row-wrap">
 <div class="row">
 <table>
 <tr>
-<td class="label">ISP</td>
-<td class="value">${vars.isp}</td>
-</tr>
-</table>
-</div>
-</td>
-</tr>
 <td class="label">DATE</td>
 <td class="value">${vars.date}</td>
 </tr>
