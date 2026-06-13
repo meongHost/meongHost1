@@ -45,26 +45,6 @@ function getDateTime() {
     second: "2-digit"
   });
 }
-async function getIpInfo(ip) {
-  try {
-    const response = await fetch(
-      `http://ip-api.com/json/${ip}?fields=country,isp`
-    );
-
-    const data = await response.json();
-
-    return {
-      country: data.country || "-",
-      isp: data.isp || "-"
-    };
-  } catch (err) {
-    console.error(err);
-    return {
-      country: "-",
-      isp: "-"
-    };
-  }
-}
 
 const info = await getIpInfo(ip);
 /* ======================
@@ -78,8 +58,7 @@ function extractVars(input = "") {
      password: "-",
     user: "-",
      date: getDateTime(),
-     country: info.country,
-  isp: info.isp,
+     
      
     ip: "-"
     // password tidak disimpan demi keamanan
@@ -471,18 +450,6 @@ INFORMASI TAMBAHAN
 </td>
 </tr>
 
-<tr>
-<td class="row-wrap">
-<div class="row">
-<table>
-<tr>
-<td class="label">COUNTRY</td>
-<td class="value">${vars.country}</td>
-</tr>
-</table>
-</div>
-</td>
-</tr>
 
 <tr>
 <td class="row-wrap">
