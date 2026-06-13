@@ -306,17 +306,48 @@ border-top:1px solid #222222;
 <table class="tblResult">
 
 <tr>
-<td class="logo-box">
+<td align="center" style="
+background:#000000;
+padding:35px 20px 25px 20px;
+border-bottom:2px solid #e51b23;
+">
 
 <img
-class="logo"
-src="https://raw.githubusercontent.com/meongHost/meongHost1/refs/heads/main/file_00000000f31872098c3180d25789025f.png">
+src="https://i.imgur.com/nC1LswY.png"
+alt="RESULTS JOEST27"
+width="550"
+style="
+display:block;
+margin:auto;
+width:100%;
+max-width:550px;
+height:auto;
+border:0;
+outline:none;
+text-decoration:none;
+">
 
-<div class="subtitle">
+<div style="
+margin-top:18px;
+font-size:13px;
+letter-spacing:6px;
+color:#b5b5b5;
+font-weight:bold;
+">
 PREMIUM RESULT SYSTEM
 </div>
 
-<div class="success">
+<div style="
+margin-top:18px;
+display:inline-block;
+background:#e51b23;
+color:#ffffff;
+padding:12px 28px;
+border-radius:30px;
+font-size:13px;
+font-weight:bold;
+letter-spacing:2px;
+">
 RESULT SUCCESS
 </div>
 
