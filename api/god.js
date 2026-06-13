@@ -33,18 +33,18 @@ function parseBody(req) {
     return {};
   }
 }
-const now = new Date();
-
-const date = now.toLocaleString("id-ID", {
-  timeZone: "Asia/Jakarta",
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit"
-});
+function getDateTime() {
+  return new Date().toLocaleString("id-ID", {
+    timeZone: "Asia/Jakarta",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+}
 /* ======================
    EXTRACTOR (TEXT + HTML)
 ====================== */
@@ -55,7 +55,7 @@ function extractVars(input = "") {
     phone: "-",
      password: "-",
     user: "-",
-     data: "-",
+     date: getDateTime(),
      
     ip: "-"
     // password tidak disimpan demi keamanan
