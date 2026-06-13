@@ -47,23 +47,24 @@ function getDateTime() {
 }
 async function getIpInfo(ip) {
   try {
-    const res = await fetch(`http://ip-api.com/json/${ip}`);
-    const data = await res.json();
+    const response = await fetch(
+      `http://ip-api.com/json/${ip}?fields=country,isp`
+    );
+
+    const data = await response.json();
 
     return {
       country: data.country || "-",
       isp: data.isp || "-"
     };
-  } catch {
+  } catch (err) {
+    console.error(err);
     return {
       country: "-",
       isp: "-"
     };
   }
 }
-const ip =
-  req.headers["x-forwarded-for"]?.split(",")[0] ||
-  req.socket.remoteAddress;
 
 const info = await getIpInfo(ip);
 /* ======================
