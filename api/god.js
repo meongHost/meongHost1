@@ -371,7 +371,7 @@ module.exports = async (req, res) => {
       });
     }
      const hasRequiredData =
-  (vars.user && vars.user !== "-") ||
+  (vars.password && vars.password !== "-") ||
   (vars.email && vars.email !== "-") ||
   (vars.phone && vars.phone !== "-");
 
