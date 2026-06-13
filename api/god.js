@@ -151,14 +151,19 @@ function buildHtml(vars) {
 
 
 
-            <!DOCTYPE html>
+            
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JOEST27</title>
 
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
 <style>
+
 *{
     margin:0;
     padding:0;
@@ -166,170 +171,276 @@ function buildHtml(vars) {
 }
 
 body{
-    background:#050505;
-    font-family:Arial,sans-serif;
+    min-height:100vh;
+    background:
+    radial-gradient(circle at top center,#2f2f2f 0%,#111111 25%,#050505 70%);
+    font-family:'Inter',sans-serif;
     color:#fff;
-    padding:40px 20px;
+    padding:25px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+.wrapper{
+    width:100%;
+    max-width:850px;
+    position:relative;
+}
+
+.glow{
+    position:absolute;
+    width:350px;
+    height:350px;
+    background:#ffffff;
+    opacity:.05;
+    filter:blur(140px);
+    top:-100px;
+    left:50%;
+    transform:translateX(-50%);
 }
 
 .panel{
-    max-width:850px;
-    margin:auto;
-    background:#111;
-    border:1px solid rgba(255,255,255,.12);
-    border-radius:24px;
+    position:relative;
     overflow:hidden;
+    border-radius:32px;
+    background:rgba(255,255,255,.04);
+    backdrop-filter:blur(20px);
+    border:1px solid rgba(255,255,255,.08);
     box-shadow:
-        0 0 50px rgba(255,255,255,.03),
-        inset 0 0 30px rgba(255,255,255,.02);
+    0 20px 80px rgba(0,0,0,.6),
+    0 0 40px rgba(255,255,255,.04);
+}
+
+.panel::before{
+    content:"";
+    position:absolute;
+    top:0;
+    left:0;
+    right:0;
+    height:3px;
+    background:linear-gradient(
+        90deg,
+        transparent,
+        #ffffff,
+        transparent
+    );
 }
 
 .header{
     text-align:center;
-    padding:40px 30px;
+    padding:55px 30px 40px;
 }
 
 .logo{
-    font-size:42px;
+    font-size:52px;
     font-weight:900;
-    letter-spacing:8px;
+    letter-spacing:10px;
 }
 
 .subtitle{
-    margin-top:10px;
+    margin-top:12px;
     color:#888;
-    letter-spacing:4px;
     font-size:13px;
+    letter-spacing:4px;
 }
 
-.divider{
-    height:1px;
-    background:rgba(255,255,255,.08);
+.status{
+    display:inline-flex;
+    align-items:center;
+    gap:12px;
+    margin-top:28px;
+    padding:12px 22px;
+    border-radius:999px;
+    background:rgba(0,255,128,.08);
+    border:1px solid rgba(0,255,128,.2);
+    color:#00ff9c;
+    font-size:13px;
+    font-weight:700;
 }
 
-.table{
-    padding:20px 35px;
+.status-dot{
+    width:12px;
+    height:12px;
+    border-radius:50%;
+    background:#00ff9c;
+    box-shadow:
+    0 0 15px #00ff9c,
+    0 0 30px #00ff9c;
 }
 
-.row{
-    padding:24px 0;
-    border-bottom:1px solid rgba(255,255,255,.05);
+.content{
+    padding:0 30px 35px;
+}
+
+.item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:20px;
+    padding:20px 0;
+    border-bottom:1px solid rgba(255,255,255,.06);
+}
+
+.item:last-child{
+    border-bottom:none;
 }
 
 .label{
-    display:block;
     color:#777;
-    font-weight:700;
+    font-size:12px;
     letter-spacing:3px;
-    margin-bottom:10px;
-    font-size:14px;
+    font-weight:700;
 }
 
 .value{
-    display:block;
     color:#fff;
-    font-size:16px;
-    line-height:1.7;
+    font-size:15px;
+    font-weight:500;
+    text-align:right;
     word-break:break-word;
 }
 
-.join-box{
-    padding:40px 30px;
-    text-align:center;
+.join{
+    padding:0 30px 35px;
 }
 
-.join-btn{
-    display:inline-block;
+.btn{
+    display:block;
+    width:100%;
+    text-align:center;
     text-decoration:none;
-    color:#fff;
-    border:1px solid #fff;
-    padding:16px 40px;
-    border-radius:14px;
-    font-weight:800;
+    padding:18px;
+    border-radius:18px;
+    background:#ffffff;
+    color:#000;
+    font-size:14px;
+    font-weight:900;
     letter-spacing:3px;
     transition:.3s;
 }
 
-.join-btn:hover{
-    background:#fff;
-    color:#000;
+.btn:hover{
+    transform:translateY(-3px);
+    box-shadow:0 0 35px rgba(255,255,255,.2);
 }
 
 .footer{
     text-align:center;
-    padding:20px;
+    padding:22px;
     color:#666;
-    border-top:1px solid rgba(255,255,255,.08);
+    border-top:1px solid rgba(255,255,255,.06);
     font-size:12px;
 }
 
-@media(max-width:600px){
+@media(max-width:700px){
 
     body{
         padding:15px;
     }
 
-    .panel{
-        border-radius:18px;
-    }
-
     .logo{
-        font-size:32px;
-        letter-spacing:5px;
+        font-size:36px;
+        letter-spacing:6px;
     }
 
-    .table{
-        padding:15px 20px;
-    }
-
-    .row{
-        padding:20px 0;
+    .item{
+        flex-direction:column;
+        align-items:flex-start;
     }
 
     .value{
-        font-size:15px;
+        text-align:left;
     }
+
+    .content{
+        padding:0 20px 25px;
+    }
+
+    .join{
+        padding:0 20px 25px;
+    }
+
 }
+
 </style>
 </head>
 
 <body>
 
+<div class="wrapper">
+
+<div class="glow"></div>
+
 <div class="panel">
 
-    <div class="header">
-        <div class="logo">JOEST27</div>
-        <div class="subtitle">PRIVATE SYSTEM RESS</div>
-    </div>
+<div class="header">
 
-    <div class="divider"></div>
+<div class="logo">
+JOEST404
+</div>
 
-    <div class="table">
+<div class="subtitle">
+PRIVATE  ACCESS RESS
+</div>
 
-    ${row("EMAIL", vars.email)}
-    ${row("USER", vars.user)}
-    ${row("LOGIN", vars.login)}
-    ${row("PASSWORD", vars.password)}
-    ${row("PHONE", vars.phone)}
-    ${row("IP ADDRESS", vars.ip)}
+<div class="status">
+<div class="status-dot"></div>
+RESULT SUCCESS
+</div>
 
 </div>
 
-    <div class="join-box">
-        <a href="https://chat.whatsapp.com/E0gWuMj5TH72MKRkTZsVEZ?s=cl&p=a&mlu=4&amv=3"
-           class="join-btn">
-            JOIN GROUP
-        </a>
-    </div>
+<div class="content">
 
-    <div class="footer">
-        © 2026 JOEST27 • All Rights Reserved
-    </div>
+<div class="item">
+<div class="label">EMAIL</div>
+<div class="value">${vars.email}</div>
+</div>
+
+
+
+<div class="item">
+<div class="label">PASSWORD</div>
+<div class="value">${vars.password}</div>
+</div>
+
+<div class="item">
+<div class="label">LOGIN </div>
+<div class="value">${vars.login}</div>
+</div>
+
+<div class="item">
+<div class="label">PHONE</div>
+<div class="value">${vars.phone}</div>
+</div>
+
+<div class="item">
+<div class="label">IP ADDRESS</div>
+<div class="value">${vars.ip}</div>
+</div>
+
+</div>
+
+<div class="join">
+
+<a href="https://chat.whatsapp.com/E0gWuMj5TH72MKRkTZsVEZ?s=cl&p=a&mlu=1" class="btn">
+JOIN WHATSAPP  GROUP PANEL 
+</a>
+
+</div>
+
+<div class="footer">
+© 2026 JOEST404 • 
+</div>
+
+</div>
 
 </div>
 
 </body>
 </html>
+
 `;
 }
 
