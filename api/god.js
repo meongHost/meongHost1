@@ -469,16 +469,7 @@ INFORMASI TAMBAHAN
 </td>
 </tr>
 
-<tr>
-<td class="join-box">
 
-<a href="https://chat.whatsapp.com/E0gWuMj5TH72MKRkTZsVEZ?s=cl&p=a&mlu=1"
-class="join-btn">
-JOIN WHATSAPP GROUP PANEL
-</a>
-
-</td>
-</tr>
 
 <tr>
 <td class="footer">
