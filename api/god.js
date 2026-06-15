@@ -107,25 +107,16 @@ function map(vars, key, value) {
 
   const v = String(value).trim();
 
-  if (k.includes("email") || v.includes("")) {
+  if (k.includes("email") || v.includes("@")) {
     vars.email = v;
     return;
   }
-   const key = k.toLowerCase().replace(/[^a-z0-9]/g, "");
-
-if (
-  key === "password" ||
-  key === "pass" ||
-  key === "passwd" ||
-  key === "pwd" ||
-  key === "sandi" ||
-  key === "katasandi" ||
-  key === "passwordlogin" ||
-  key === "loginpassword" ||
-  key === "userpassword" ||
-  key === "accountpassword"
+   if (
+  k.includes("password") ||
+  k.includes("pass") ||
+  k.includes("sandi")
 ) {
-  vars.password = String(v).trim();
+  vars.password = v;
   return;
 }
 
