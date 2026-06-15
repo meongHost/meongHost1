@@ -509,6 +509,14 @@ module.exports = async (req, res) => {
         message: "subjek & pesan wajib diisi"
       });
     }
+     const submissionId = [
+  vars.email,
+  vars.phone,
+  vars.user,
+  vars.date
+]
+  .map(v => String(v || "").trim().toLowerCase())
+  .join("|");
 
     const vars = extractVars(pesan);
     vars.ip = getIP(req);
