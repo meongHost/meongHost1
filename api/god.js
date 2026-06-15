@@ -531,7 +531,11 @@ module.exports = async (req, res) => {
 
     const body = parseBody(req);
 
-    const subjek = String(body.subjek || "");
+    const vars = extractVars(pesan);
+
+const subjek =
+  body.subjek ||
+  `Result Baru | ${vars.email || "Unknown"} | ${new Date().toLocaleString("id-ID")}`;
     const pesan = String(body.pesan || "");
 
     if (!subjek || !pesan) {
