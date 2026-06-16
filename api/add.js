@@ -3,20 +3,23 @@ const https = require("https");
 /* =========================
    CONFIG
 ========================= */
-const OWNER = process.env.GH_OWNER || "meongHost";
-const REPO = process.env.GH_REPO || "meongHost1";
-const BRANCH = process.env.GH_BRANCH || "main";
-const TOKEN = process.env.GH_TOKEN;
-const API_KEY = process.env.API_KEY;
+const OWNER = "meongHost";
+const REPO = "meongHost1";
+const BRANCH = "main";
+
+const TOKEN = "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";
+const API_KEY = "joest27";
 
 const URLS_FILE = "data/urls.json";
 const EXPIRE_FILE = "data/url_expired.json";
 
 /* =========================
-   GITHUB REQUEST (with retry on conflict)
+   GITHUB REQUEST
 ========================= */
 function githubRequest(method, path, body = null) {
   return new Promise((resolve, reject) => {
+    const payload = body ? JSON.stringify(body) : null;
+
     const req = https.request(
       {
         hostname: "api.github.com",
@@ -26,7 +29,8 @@ function githubRequest(method, path, body = null) {
           "User-Agent": "NodeJS",
           Authorization: `Bearer ${TOKEN}`,
           Accept: "application/vnd.github+json",
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...(payload ? { "Content-Length": Buffer.byteLength(payload) } : {})
         }
       },
       res => {
@@ -35,7 +39,7 @@ function githubRequest(method, path, body = null) {
         res.on("end", () => {
           let parsed;
           try {
-            parsed = JSON.parse(data);
+            parsed = data ? JSON.parse(data) : {};
           } catch {
             parsed = data;
           }
@@ -45,7 +49,7 @@ function githubRequest(method, path, body = null) {
     );
 
     req.on("error", reject);
-    if (body) req.write(JSON.stringify(body));
+    if (payload) req.write(payload);
     req.end();
   });
 }
@@ -90,14 +94,14 @@ async function loadFile(filePath) {
 }
 
 /* =========================
-   SAVE FILE (auto-retry once on SHA conflict)
+   SAVE FILE (retry sekali kalau sha conflict)
 ========================= */
 async function saveFile(filePath, contentData, sha, message) {
-  const doSave = sha =>
+  const doSave = currentSha =>
     githubRequest("PUT", `/repos/${OWNER}/${REPO}/contents/${filePath}`, {
       message,
       branch: BRANCH,
-      sha: sha || undefined,
+      sha: currentSha || undefined,
       content: Buffer.from(JSON.stringify(contentData, null, 2)).toString("base64")
     });
 
@@ -116,7 +120,7 @@ async function saveFile(filePath, contentData, sha, message) {
 }
 
 /* =========================
-   CLEAN EXPIRED URLS
+   CLEAN EXPIRED
 ========================= */
 function cleanExpired(urls, expired, now) {
   let changed = false;
@@ -136,12 +140,106 @@ function cleanExpired(urls, expired, now) {
 }
 
 /* =========================
-   MAIN
+   MAIN HANDLER
 ========================= */
 module.exports = async (req, res) => {
-  if (!TOKEN || !API_KEY) {
-    return res.status(500).json({ success: false, message: "Server misconfigured: missing TOKEN/API_KEY" });
-  }
-
   try {
-    const [urlFile, expFile] = await Promise.all([loadFile(URLS_FILE), loadFile(EXPI
+    const [urlFile, expFile] = await Promise.all([
+      loadFile(URLS_FILE),
+      loadFile(EXPIRE_FILE)
+    ]);
+
+    let urls = Array.isArray(urlFile.data) ? urlFile.data : [];
+    let expired = typeof expFile.data === "object" && expFile.data ? expFile.data : {};
+
+    const now = Math.floor(Date.now() / 1000);
+
+    const cleaned = cleanExpired(urls, expired, now);
+    urls = cleaned.alive;
+
+    if (cleaned.changed) {
+      await Promise.all([
+        saveFile(URLS_FILE, urls, urlFile.sha, "Auto remove expired URLs"),
+        saveFile(EXPIRE_FILE, expired, expFile.sha, "Auto remove expired metadata")
+      ]);
+    }
+
+    if (req.method === "GET") {
+      return res.status(200).json({
+        success: true,
+        total: urls.length,
+        urls: urls.map(url => ({
+          url,
+          days_left: Math.max(0, Math.ceil(((expired[url] || now) - now) / 86400))
+        }))
+      });
+    }
+
+    if (req.method !== "POST") {
+      return res.status(405).json({ success: false, message: "POST only" });
+    }
+
+    let body = req.body;
+    if (typeof body === "string") {
+      try {
+        body = JSON.parse(body);
+      } catch {
+        body = {};
+      }
+    }
+    body = body || {};
+
+    const apikey = body.apikey || "";
+    const url = String(body.url || "").trim();
+    const days = Number(body.days || 30);
+
+    if (apikey !== API_KEY) {
+      return res.status(403).json({ success: false, message: "apikey salah" });
+    }
+    if (!url) {
+      return res.status(400).json({ success: false, message: "url kosong" });
+    }
+    if (!isValidUrl(url)) {
+      return res.status(400).json({ success: false, message: "url tidak valid" });
+    }
+    if (!Number.isFinite(days) || days < 1 || days > 365) {
+      return res.status(400).json({ success: false, message: "days harus 1-365" });
+    }
+    if (urls.some(x => x.toLowerCase() === url.toLowerCase())) {
+      return res.status(200).json({ success: false, message: "url sudah ada" });
+    }
+
+    urls.push(url);
+    expired[url] = now + days * 86400;
+
+    const [latestUrls, latestExp] = await Promise.all([
+      loadFile(URLS_FILE),
+      loadFile(EXPIRE_FILE)
+    ]);
+
+    latestUrls.data = Array.isArray(latestUrls.data) ? latestUrls.data : [];
+    if (!latestUrls.data.some(x => x.toLowerCase() === url.toLowerCase())) {
+      latestUrls.data.push(url);
+    }
+    latestExp.data = typeof latestExp.data === "object" && latestExp.data ? latestExp.data : {};
+    latestExp.data[url] = now + days * 86400;
+
+    const saveUrls = await saveFile(URLS_FILE, latestUrls.data, latestUrls.sha, `Add URL ${url}`);
+    const saveExpire = await saveFile(EXPIRE_FILE, latestExp.data, latestExp.sha, `Add Expire ${url}`);
+
+    return res.status(200).json({
+      success: true,
+      message: "url berhasil ditambahkan",
+      total: latestUrls.data.length,
+      commit: saveUrls.commit?.sha || null,
+      data: {
+        url,
+        days,
+        expired_at: latestExp.data[url]
+      }
+    });
+  } catch (err) {
+    console.error("Handler error:", err);
+    return res.status(500).json({ success: false, error: err.message || "Unknown error" });
+  }
+};
