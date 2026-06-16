@@ -135,6 +135,19 @@ async function saveFile(
    MAIN
 ========================= */
 module.exports = async (req, res) => {
+   const file = await githubRequest(
+    "GET",
+    `/repos/${OWNER}/${REPO}/contents/data/urls.json?ref=${BRANCH}`
+  );
+
+  return res.json({
+    sha: file.sha,
+    hasContent: !!file.content,
+    raw: file.content
+      ? Buffer.from(file.content, "base64").toString("utf8")
+      : null
+  });
+};
   try {
 
     const urlFile = await loadFile(URLS_FILE);
