@@ -1,5 +1,8 @@
 const https = require("https");
 
+/* =========================
+   CONFIG
+========================= */
 const OWNER = "meongHost";
 const REPO = "meongHost1";
 const BRANCH = "main";
@@ -74,10 +77,10 @@ function isValidUrl(url) {
 /* =========================
    LOAD FILE
 ========================= */
-async function loadFile(pathFile) {
+async function loadFile(filePath) {
   const file = await githubRequest(
     "GET",
-    `/repos/${OWNER}/${REPO}/contents/${pathFile}?ref=${BRANCH}`
+    `/repos/${OWNER}/${REPO}/contents/${filePath}?ref=${BRANCH}`
   );
 
   let data;
@@ -90,7 +93,7 @@ async function loadFile(pathFile) {
       ).toString("utf8")
     );
   } catch {
-    data = pathFile.includes("expired")
+    data = filePath.includes("expired")
       ? {}
       : [];
   }
@@ -105,14 +108,14 @@ async function loadFile(pathFile) {
    SAVE FILE
 ========================= */
 async function saveFile(
-  pathFile,
+  filePath,
   contentData,
   sha,
   message
 ) {
   return githubRequest(
     "PUT",
-    `/repos/${OWNER}/${REPO}/contents/${pathFile}`,
+    `/repos/${OWNER}/${REPO}/contents/${filePath}`,
     {
       message,
       branch: BRANCH,
@@ -134,33 +137,25 @@ async function saveFile(
 module.exports = async (req, res) => {
   try {
 
-    const urlFile =
-      await loadFile(URLS_FILE);
+    const urlFile = await loadFile(URLS_FILE);
+    const expFile = await loadFile(EXPIRE_FILE);
 
-    const expFile =
-      await loadFile(EXPIRE_FILE);
-
-    let urls = Array.isArray(
-      urlFile.data
-    )
+    let urls = Array.isArray(urlFile.data)
       ? urlFile.data
       : [];
 
     let expired =
-      typeof expFile.data ===
-        "object" &&
+      typeof expFile.data === "object" &&
       expFile.data
         ? expFile.data
         : {};
 
-    const now = Math.floor(
-      Date.now() / 1000
-    );
+    const now = Math.floor(Date.now() / 1000);
 
-    /* =========================
-       AUTO REMOVE EXPIRED
-    ========================= */
-    const before = urls.length;
+    /* =====================
+       AUTO DELETE EXPIRED
+    ===================== */
+    let changed = false;
 
     urls = urls.filter(url => {
       const exp = expired[url];
@@ -169,13 +164,14 @@ module.exports = async (req, res) => {
 
       if (exp <= now) {
         delete expired[url];
+        changed = true;
         return false;
       }
 
       return true;
     });
 
-    if (before !== urls.length) {
+    if (changed) {
 
       const latestUrls =
         await loadFile(URLS_FILE);
@@ -198,11 +194,10 @@ module.exports = async (req, res) => {
       );
     }
 
-    /* =========================
-       GET LIST
-    ========================= */
+    /* =====================
+       LIST URL
+    ===================== */
     if (req.method === "GET") {
-
       return res.json({
         success: true,
         total: urls.length,
@@ -220,9 +215,9 @@ module.exports = async (req, res) => {
       });
     }
 
-    /* =========================
-       POST ONLY
-    ========================= */
+    /* =====================
+       ADD URL
+    ===================== */
     if (req.method !== "POST") {
       return res.status(405).json({
         success: false,
@@ -232,9 +227,7 @@ module.exports = async (req, res) => {
 
     const body = req.body || {};
 
-    const apikey =
-      body.apikey || "";
-
+    const apikey = body.apikey || "";
     const url = String(
       body.url || ""
     ).trim();
@@ -260,19 +253,14 @@ module.exports = async (req, res) => {
     if (!isValidUrl(url)) {
       return res.status(400).json({
         success: false,
-        message:
-          "url tidak valid"
+        message: "url tidak valid"
       });
     }
 
-    if (
-      days < 1 ||
-      days > 365
-    ) {
+    if (days < 1 || days > 365) {
       return res.status(400).json({
         success: false,
-        message:
-          "days harus 1-365"
+        message: "days harus 1-365"
       });
     }
 
@@ -285,8 +273,7 @@ module.exports = async (req, res) => {
     ) {
       return res.json({
         success: false,
-        message:
-          "url sudah ada"
+        message: "url sudah ada"
       });
     }
 
@@ -301,25 +288,49 @@ module.exports = async (req, res) => {
     const latestExp =
       await loadFile(EXPIRE_FILE);
 
-    await saveFile(
+    const saveUrls = await saveFile(
       URLS_FILE,
       urls,
       latestUrls.sha,
       `Add URL ${url}`
     );
 
-    await saveFile(
-      EXPIRE_FILE,
-      expired,
-      latestExp.sha,
-      `Add Expire ${url}`
-    );
+    const saveExpire =
+      await saveFile(
+        EXPIRE_FILE,
+        expired,
+        latestExp.sha,
+        `Add Expire ${url}`
+      );
+
+    if (
+      saveUrls.message &&
+      !saveUrls.content
+    ) {
+      return res.status(500).json({
+        success: false,
+        github: saveUrls
+      });
+    }
+
+    if (
+      saveExpire.message &&
+      !saveExpire.content
+    ) {
+      return res.status(500).json({
+        success: false,
+        github: saveExpire
+      });
+    }
 
     return res.json({
       success: true,
       message:
         "url berhasil ditambahkan",
       total: urls.length,
+      commit:
+        saveUrls.commit?.sha ||
+        null,
       data: {
         url,
         days,
