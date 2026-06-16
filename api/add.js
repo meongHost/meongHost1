@@ -1,7 +1,7 @@
 const https = require("https");
 
-const OWNER = "USERNAME";
-const REPO = "REPOSITORY";
+const OWNER = "meongHost";
+const REPO = "meongHost1";
 const BRANCH = "main";
 
 const TOKEN = "github_pat_xxxxxxxxx";
