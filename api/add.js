@@ -7,7 +7,7 @@ const OWNER = "meongHost";
 const REPO = "meongHost1";
 const BRANCH = "main";
 
-const TOKEN = "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";
+const TOKEN = "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";
 const API_KEY = "joest27";
 
 const URLS_FILE = "data/urls.json";
