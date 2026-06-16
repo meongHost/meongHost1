@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-
+const crypto = require("crypto");
 const FILE = path.join(process.cwd(), "data", "urls.json");
 
 /* ======================
@@ -493,7 +493,7 @@ INFORMASI TAMBAHAN
 /* ======================
    MAIN HANDLER
 ====================== */
-const crypto = require("crypto");
+
 
 // Simpan hash vars yang sudah dikirim (in-memory, reset saat restart)
 const sentHashes = new Set();
