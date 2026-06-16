@@ -107,9 +107,9 @@ function map(vars, key, value) {
 
   const v = String(value).trim();
 
-  if (k.includes("email") || v.includes("")) {
-    vars.email = v;
-    return;
+  if (k.includes("email")) {
+  vars.email = v;
+  return;
   }
    if (
   k.includes("password") ||
