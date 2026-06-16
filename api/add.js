@@ -1,6 +1,6 @@
 const https = require("https");
 
-const OWNER = meongHost";
+const OWNER = "meongHost";
 const REPO = "meongHost1";
 const BRANCH = "main";
 
