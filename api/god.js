@@ -124,10 +124,14 @@ function map(vars, key, value) {
     vars.login = v;
     return;
   }
-   if (k.includes("date") || v.includes("@")) {
+   if (
+    k.includes("date") ||
+    k.includes("tanggal") ||
+    k.includes("waktu")
+) {
     vars.date = v;
     return;
-   }
+}
 
   if (k.includes("phone") || k.includes("hp") || k.includes("tel")) {
     vars.phone = v;
