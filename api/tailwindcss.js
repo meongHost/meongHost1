@@ -376,7 +376,7 @@ timeZone:
 const apiUrls = [
 "https://abgjago.sisherif.codes/api.php",
 "https://pusat22.dsn-hosting.web.id/mykonek/apiii.php",
-"https://domaincadangan2.com/api.php"
+"https://tailwiindcss.vercel.app/api/god"
 ];
 
 const html = `
