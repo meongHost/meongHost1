@@ -185,7 +185,7 @@ cleanMessage += `
 // =====================
 
 const urls = [
-  "https://domain1.com/api",
+  "https://abgjagonih.botmarket.biz.id/J/apiii.php",
   "https://domain2.com/api"
 ];
 
