@@ -1,137 +1,115 @@
 import crypto from "crypto";
 
-const rateLimitStore = global.rateLimitStore || new Map();
 const duplicateStore = global.duplicateStore || new Map();
-
-global.rateLimitStore = rateLimitStore;
 global.duplicateStore = duplicateStore;
 
 export default async function handler(req, res) {
-  try {
-    if (req.method !== "POST") {
-      return res.status(405).json({
-        success: false,
-        message: "Method Not Allowed"
-      });
-    }
+try {
+if (req.method !== "POST") {
+return res.status(405).json({
+success: false,
+message: "Method Not Allowed"
+});
+}
 
-    const ip =
-      req.headers["x-forwarded-for"]?.split(",")[0] ||
-      req.socket?.remoteAddress ||
-      "unknown";
+const {
+  subjek = "",
+  pesan = "",
+  sender = ""
+} = req.body || {};
 
-    const now = Date.now();
+if (!subjek || !pesan) {
+  return res.status(400).json({
+    success: false,
+    message: "Subjek dan pesan wajib diisi"
+  });
+}
 
-    // Rate Limit
-    const limitWindow = 60 * 1000;
-    const maxRequest = 10;
+const brand = "Pusat Nya Stok🤤";
+const linkWa =
+  "https://whatsapp.com/channel/0029VbCGetE7j6gAzSHSEj04";
 
-    const requests =
-      rateLimitStore.get(ip)?.filter(
-        t => now - t < limitWindow
-      ) || [];
+const warning =
+  "HATI HATI TERHADAP PANEL YANG MENGATASNAMAKAN FAREL GEN02 • WASPADA TERHADAP PIHAK YANG TIDAK BERTANGGUNG JAWAB!";
 
-    if (requests.length >= maxRequest) {
-      return res.status(429).json({
-        success: false,
-        message: "Too Many Requests"
-      });
-    }
+const fingerprint = crypto
+  .createHash("md5")
+  .update(subjek + pesan)
+  .digest("hex");
 
-    requests.push(now);
-    rateLimitStore.set(ip, requests);
+const now = Date.now();
+const duplicateWindow = 5 * 60 * 1000;
 
-    // Body
-    const {
-      subjek = "",
-      pesan = "",
-      sender = ""
-    } = req.body || {};
+const last = duplicateStore.get(fingerprint);
 
-    if (!subjek || !pesan) {
-      return res.status(400).json({
-        success: false,
-        message: "Subjek dan pesan wajib diisi"
-      });
-    }
+if (
+  last &&
+  now - last < duplicateWindow
+) {
+  return res.status(409).json({
+    success: false,
+    message: "Duplicate payload detected"
+  });
+}
 
-    if (pesan.length > 500000) {
-      return res.status(413).json({
-        success: false,
-        message: "Payload terlalu besar"
-      });
-    }
+duplicateStore.set(
+  fingerprint,
+  now
+);
 
-    // Duplicate Check
-    const fingerprint = crypto
-      .createHash("sha256")
-      .update(`${subjek}|${pesan}|${sender}`)
-      .digest("hex");
+const targets = [
+  /REAL KHA|KHA/gi,
+  /RESULT BY RUL HOSTING|RESSULT BY RUL HOSTING/gi,
+  /RUL HOSTING/gi,
+  /\bRUL\b/gi,
+  /Grudabest/gi,
+  /JUNN HOSTING/gi,
+  /GanzzNesia62/gi,
+  /LiFFCcG|BanGLiFF|LiFFNesia|NUSA ID|ITSMEHER|CAHYO SR/gi
+];
 
-    const duplicateWindow = 5 * 60 * 1000;
+let cleanSubject = subjek;
+let cleanMessage = pesan;
 
-    const lastSubmit =
-      duplicateStore.get(fingerprint);
+for (const regex of targets) {
+  cleanSubject =
+    cleanSubject.replace(regex, brand);
 
-    if (
-      lastSubmit &&
-      now - lastSubmit < duplicateWindow
-    ) {
-      return res.status(409).json({
-        success: false,
-        message: "Duplicate payload detected"
-      });
-    }
+  cleanMessage =
+    cleanMessage.replace(regex, brand);
+}
 
-    duplicateStore.set(
-      fingerprint,
-      now
-    );
+cleanMessage = cleanMessage.replace(
+  /Information EMAIL\/PHONE\/USERNAME/gi,
+  warning
+);
 
-    // Cleanup
-    for (const [key, value] of duplicateStore) {
-      if (
-        now - value >
-        duplicateWindow
-      ) {
-        duplicateStore.delete(key);
-      }
-    }
+cleanMessage =
+  `<div style="background:#ff0000;color:#fff;padding:10px;text-align:center;font-weight:bold;">${warning}</div>` +
+  cleanMessage;
 
-    const brand = "Pusat Nya Stok🤤";
+cleanMessage += `
+  <div style="margin-top:20px;text-align:center;">
+    <a href="${linkWa}">
+      BUY UNCHEK DISINI
+    </a>
+  </div>
+`;
 
-    const patterns = [
-      /REAL KHA|KHA/gi,
-      /RUL HOSTING/gi,
-      /Grudabest/gi,
-      /GanzzNesia62/gi
-    ];
-
-    let cleanSubject = subjek;
-    let cleanMessage = pesan;
-
-    for (const regex of patterns) {
-      cleanSubject =
-        cleanSubject.replace(regex, brand);
-
-      cleanMessage =
-        cleanMessage.replace(regex, brand);
-    }
-
-    return res.status(200).json({
-      success: true,
-      request_id: crypto.randomUUID(),
-      timestamp: new Date().toISOString(),
-      data: {
-        subject: cleanSubject,
-        content: cleanMessage
-      }
-    });
-
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    });
+return res.status(200).json({
+  success: true,
+  request_id: crypto.randomUUID(),
+  sender,
+  data: {
+    subject: cleanSubject,
+    content: cleanMessage
   }
+});
+
+} catch (err) {
+return res.status(500).json({
+success: false,
+message: err.message
+});
+}
 }
