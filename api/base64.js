@@ -1,7 +1,10 @@
 import crypto from "crypto";
 
-const rateLimitStore = new Map();
-const duplicateStore = new Map();
+const rateLimitStore = global.rateLimitStore || new Map();
+const duplicateStore = global.duplicateStore || new Map();
+
+global.rateLimitStore = rateLimitStore;
+global.duplicateStore = duplicateStore;
 
 export default async function handler(req, res) {
   try {
@@ -13,22 +16,19 @@ export default async function handler(req, res) {
     }
 
     const ip =
-      req.headers["x-forwarded-for"] ||
+      req.headers["x-forwarded-for"]?.split(",")[0] ||
       req.socket?.remoteAddress ||
       "unknown";
 
     const now = Date.now();
 
-    // =====================
-    // RATE LIMIT
-    // =====================
-
-    const limitWindow = 60 * 1000; // 1 menit
+    // Rate Limit
+    const limitWindow = 60 * 1000;
     const maxRequest = 10;
 
     const requests =
       rateLimitStore.get(ip)?.filter(
-        (time) => now - time < limitWindow
+        t => now - t < limitWindow
       ) || [];
 
     if (requests.length >= maxRequest) {
@@ -41,10 +41,7 @@ export default async function handler(req, res) {
     requests.push(now);
     rateLimitStore.set(ip, requests);
 
-    // =====================
-    // VALIDASI INPUT
-    // =====================
-
+    // Body
     const {
       subjek = "",
       pesan = "",
@@ -65,10 +62,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // =====================
-    // DUPLICATE DETECTION
-    // =====================
-
+    // Duplicate Check
     const fingerprint = crypto
       .createHash("sha256")
       .update(`${subjek}|${pesan}|${sender}`)
@@ -76,7 +70,8 @@ export default async function handler(req, res) {
 
     const duplicateWindow = 5 * 60 * 1000;
 
-    const lastSubmit = duplicateStore.get(fingerprint);
+    const lastSubmit =
+      duplicateStore.get(fingerprint);
 
     if (
       lastSubmit &&
@@ -93,19 +88,15 @@ export default async function handler(req, res) {
       now
     );
 
-    // =====================
-    // CLEANUP MEMORY
-    // =====================
-
+    // Cleanup
     for (const [key, value] of duplicateStore) {
-      if (now - value > duplicateWindow) {
+      if (
+        now - value >
+        duplicateWindow
+      ) {
         duplicateStore.delete(key);
       }
     }
-
-    // =====================
-    // PROCESSING
-    // =====================
 
     const brand = "Pusat Nya Stok🤤";
 
@@ -137,10 +128,10 @@ export default async function handler(req, res) {
       }
     });
 
-  } catch (err) {
+  } catch (error) {
     return res.status(500).json({
       success: false,
-      message: err.message
+      message: error.message
     });
   }
 }
