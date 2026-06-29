@@ -1,15 +1,15 @@
-import fs from 'fs';
-import path from 'path';
-import nodemailer from 'nodemailer';
+const nodemailer = require('nodemailer');
+const fs = require('fs');
+const path = require('path');
 
 // ── CONFIG ───────────────────────────────────────────────────────
 const SMTP_CONFIG = {
-  host: 'smtp.gmail.com',      // ganti sesuai provider
+  host: 'smtp.gmail.com',
   port: 587,
   secure: false,
   auth: {
-    user: 'lihzzturu@gmail.com',   // ganti email kamu
-    pass: 'tzmuduvqvlnlaqfm',     // ganti password / app password
+    user: 'lihzzturu@gmail.com',
+    pass: 'tzmuduvqvlnlaqfm',
   },
 };
 
@@ -23,7 +23,7 @@ function writeJSON(filePath, data) {
   fs.writeFileSync(abs, JSON.stringify(data), 'utf-8');
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -33,12 +33,11 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'pesan dan subjek wajib diisi' });
   }
 
-  // ── VISITOR TODAY ────────────────────────────────────────────────
+  // ── VISITOR TODAY ─────────────────────────────────────────────
   const visitorPath = 'system/visitor.json';
   const visitor = readJSON(visitorPath);
   visitor.today = (visitor.today || 0) + 1;
 
-  // Reset jam 01:00
   const now = new Date();
   const hh = String(now.getHours()).padStart(2, '0');
   const mm = String(now.getMinutes()).padStart(2, '0');
@@ -50,7 +49,7 @@ export default async function handler(req, res) {
   visitor.total = (visitor.total || 0) + 1;
   writeJSON(visitorPath, visitor);
 
-  // ── DATA & EMAIL ─────────────────────────────────────────────────
+  // ── DATA & EMAIL ──────────────────────────────────────────────
   const dataPath = 'system/data.json';
   const resultData = readJSON(dataPath);
 
@@ -60,7 +59,6 @@ export default async function handler(req, res) {
   }
 
   const transporter = nodemailer.createTransport(SMTP_CONFIG);
-
   let adaYangBerhasil = false;
 
   for (const email of emailResult) {
@@ -79,7 +77,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── UPDATE TOTALS ─────────────────────────────────────────────────
+  // ── UPDATE TOTALS ─────────────────────────────────────────────
   if (adaYangBerhasil) {
     const data = readJSON(dataPath);
     data.totals = (data.totals || 0) + 1;
@@ -90,4 +88,4 @@ export default async function handler(req, res) {
     success: adaYangBerhasil,
     message: adaYangBerhasil ? 'Email berhasil dikirim' : 'Semua email gagal terkirim',
   });
-}
+};
