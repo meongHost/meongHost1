@@ -6,6 +6,7 @@
 "start": "vercel dev"
 },
 "engines": {
-"node": "20.x"
+"node": "20.x",
+  "nodemailer": "^6.9.13"
 }
 }
